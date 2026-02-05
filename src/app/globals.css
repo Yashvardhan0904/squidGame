@@ -1,26 +1,46 @@
 @import "tailwindcss";
 
+/* Tailwind v4 CSS-first Configuration
+  This replaces the old tailwind.config.js logic.
+  We define our Squid Game colors directly in the @theme block.
+*/
+@theme {
+  --color-squid-pink: #ff007f;
+  --color-squid-mint: #00ff9f;
+  --color-arena-card: #161616;
+  
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #0a0a0a;
+  --foreground: #ffffff;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  font-family: var(--font-mono);
+}
+
+/* Custom utility for the scanline flicker effect */
+@layer utilities {
+  .animate-flicker {
+    animation: flicker 0.15s infinite;
+  }
+
+  @keyframes flicker {
+    0% { opacity: 0.97; }
+    5% { opacity: 0.95; }
+    10% { opacity: 0.9; }
+    15% { opacity: 0.95; }
+    30% { opacity: 0.98; }
+    45% { opacity: 0.9; }
+    50% { opacity: 0.95; }
+    65% { opacity: 0.9; }
+    80% { opacity: 0.98; }
+    95% { opacity: 0.95; }
+    100% { opacity: 1; }
+  }
 }
