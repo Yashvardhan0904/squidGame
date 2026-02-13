@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
-/* Tailwind v4 CSS-first Configuration
-  This replaces the old tailwind.config.js logic.
-  We define our Squid Game colors directly in the @theme block.
-*/
+/* Tailwind v4 CSS-first Configuration */
 @theme {
+  --color-squid-black: #0a0a0a;
   --color-squid-pink: #ff007f;
   --color-squid-mint: #00ff9f;
+  --color-squid-yellow: #ffff00;
+  --color-squid-gray: #1a1a1a;
   --color-arena-card: #161616;
   
-  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono: "Courier New", "Roboto Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
 }
 
 :root {
@@ -17,30 +17,94 @@
   --foreground: #ffffff;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   margin: 0;
   font-family: var(--font-mono);
+  position: relative;
+  overflow-x: hidden;
 }
 
-/* Custom utility for the scanline flicker effect */
+/* CRT Scanline Overlay Effect */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.15),
+    rgba(0, 0, 0, 0.15) 1px,
+    transparent 1px,
+    transparent 2px
+  );
+  pointer-events: none;
+  z-index: 9999;
+  animation: crt-scanline 8s linear infinite;
+}
+
+@keyframes crt-scanline {
+  0% { transform: translateY(-10px); }
+  100% { transform: translateY(10px); }
+}
+
+/* Flicker Animation */
+@keyframes flicker {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 127, 0.5); }
+  50% { box-shadow: 0 0 20px rgba(255, 0, 127, 1); }
+}
+
+/* Custom utility classes */
 @layer utilities {
   .animate-flicker {
     animation: flicker 0.15s infinite;
   }
-
-  @keyframes flicker {
-    0% { opacity: 0.97; }
-    5% { opacity: 0.95; }
-    10% { opacity: 0.9; }
-    15% { opacity: 0.95; }
-    30% { opacity: 0.98; }
-    45% { opacity: 0.9; }
-    50% { opacity: 0.95; }
-    65% { opacity: 0.9; }
-    80% { opacity: 0.98; }
-    95% { opacity: 0.95; }
-    100% { opacity: 1; }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  .text-squid-pink {
+    color: var(--color-squid-pink);
+  }
+  
+  .text-squid-mint {
+    color: var(--color-squid-mint);
+  }
+  
+  .text-squid-yellow {
+    color: var(--color-squid-yellow);
+  }
+  
+  .bg-squid-black {
+    background-color: var(--color-squid-black);
+  }
+  
+  .bg-squid-gray {
+    background-color: var(--color-squid-gray);
+  }
+  
+  .border-squid-pink {
+    border-color: var(--color-squid-pink);
+  }
+  
+  .border-squid-mint {
+    border-color: var(--color-squid-mint);
+  }
+  
+  .border-squid-yellow {
+    border-color: var(--color-squid-yellow);
   }
 }
