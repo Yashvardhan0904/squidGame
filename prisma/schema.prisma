@@ -1,0 +1,293 @@
+// ACM Squid Game - 25 Day DSA Challenge
+// PostgreSQL Schema on Railway
+// COMPLETE BACKEND SYSTEM WITH SCRAPING + STRIKE PROCESSING
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// USER MODEL (Participants in competition)
+// ═══════════════════════════════════════════════════════════════════════════════
+model User {
+  id              Int       @id @default(autoincrement())
+  name            String
+  hackerrank_id   String    @unique
+  enroll_no       String?   @unique
+  email           String?
+  batch           String?
+  year            String?
+  experience      String?
+  
+  // Competition state
+  status          String    @default("active") // active, eliminated, suspended
+  strike_count    Int       @default(0)
+  consecutive_miss Int      @default(0)
+  total_score     Float     @default(0)
+  
+  // Legacy support
+  is_eliminated   Boolean   @default(false)
+  eliminated_on   DateTime?
+  
+  // Registration tracking (for grace period)
+  joined_day      Int?      // day_number when user joined
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  // Relations
+  daily_scores    DailyScore[]
+  elimination_log EliminationLog?
+  strike_logs     StrikeLog[]
+  emails_sent     EmailQueue[]
+
+  @@index([is_eliminated, total_score(sort: Desc)], name: "idx_leaderboard")
+  @@index([strike_count], name: "idx_strike_count")
+  @@index([hackerrank_id], name: "idx_hackerrank_id")
+  @@index([status, strike_count, total_score(sort: Desc)], name: "idx_active_leaderboard")
+  @@map("users")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DAILY SCORE (Processed user scores per day)
+// ═══════════════════════════════════════════════════════════════════════════════
+model DailyScore {
+  id           Int      @id @default(autoincrement())
+  user_id      Int
+  day_number   Int      // 1-25
+  contest_id   Int?
+  score        Float    @default(0)
+  solved       Boolean  @default(false)
+  contest_slug String?
+  submitted_at DateTime @default(now())
+
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  contest Contest? @relation(fields: [contest_id], references: [id])
+
+  @@unique([user_id, day_number], name: "unique_user_day")
+  @@index([day_number], name: "idx_day_number")
+  @@index([user_id], name: "idx_user_id")
+  @@map("daily_scores")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ELIMINATION LOG
+// ═══════════════════════════════════════════════════════════════════════════════
+model EliminationLog {
+  id              Int       @id @default(autoincrement())
+  user_id         Int       @unique
+  eliminated_at   DateTime  @default(now())
+  final_score     Float     @default(0)
+  total_strikes   Int       @default(3)
+  last_day_played Int
+  
+  // Admin override
+  reinstated       Boolean   @default(false)
+  reinstated_by    Int?
+  reinstated_at    DateTime?
+  reinstate_reason String?
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([eliminated_at(sort: Desc)], name: "idx_elimination_date")
+  @@map("elimination_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONTEST (One per day)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Contest {
+  id           Int       @id @default(autoincrement())
+  day_number   Int       @unique
+  contest_slug String?
+  contest_url  String?
+  problem_name String?
+  date         DateTime  @default(now())
+  
+  // Timing
+  start_time   DateTime?
+  end_time     DateTime?
+  
+  // Scraping state
+  is_scraped       Boolean  @default(false)
+  scraped_at       DateTime?
+  scrape_attempts  Int      @default(0)
+  last_scrape_error String?
+  
+  // Processing state
+  is_processed  Boolean  @default(false)
+  processed_at  DateTime?
+
+  // Relations
+  daily_scores    DailyScore[]
+  scraped_results ScrapedResult[]
+  strike_logs     StrikeLog[]
+
+  @@map("contests")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCRAPED RESULTS (Raw data from HackerRank leaderboard)
+// ═══════════════════════════════════════════════════════════════════════════════
+model ScrapedResult {
+  id             Int       @id @default(autoincrement())
+  contest_id     Int
+  day_number     Int
+  
+  // Scraped data
+  hackerrank_id  String
+  score          Float     @default(0)
+  rank           Int?
+  submission_time DateTime?
+  
+  // Metadata
+  scraped_at     DateTime  @default(now())
+  scrape_batch_id String   // UUID to group results from same scrape
+
+  contest Contest @relation(fields: [contest_id], references: [id], onDelete: Cascade)
+
+  @@unique([day_number, hackerrank_id], name: "unique_scraped_day_user")
+  @@index([day_number], name: "idx_scraped_day")
+  @@index([hackerrank_id], name: "idx_scraped_hackerrank")
+  @@index([scrape_batch_id], name: "idx_scrape_batch")
+  @@map("scraped_results")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// STRIKE LOGS (Audit trail + duplicate prevention)
+// ═══════════════════════════════════════════════════════════════════════════════
+model StrikeLog {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  day_number      Int
+  contest_id      Int?
+  
+  // Strike info
+  reason          String    @default("no_submission") // no_submission, manual, late_join_grace
+  strike_number   Int       // 1st, 2nd, or 3rd strike
+  consecutive_at  Int       // consecutive_miss value when strike issued
+  
+  // Admin override
+  reverted        Boolean   @default(false)
+  reverted_by     Int?
+  reverted_at     DateTime?
+  revert_reason   String?
+  
+  created_at      DateTime  @default(now())
+
+  user    User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  contest Contest? @relation(fields: [contest_id], references: [id])
+
+  @@unique([user_id, day_number], name: "unique_strike_user_day")
+  @@index([user_id], name: "idx_strike_user")
+  @@index([day_number], name: "idx_strike_day")
+  @@map("strike_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMAIL QUEUE (Deferred email sending with retry)
+// ═══════════════════════════════════════════════════════════════════════════════
+model EmailQueue {
+  id              Int       @id @default(autoincrement())
+  user_id         Int
+  to_email        String
+  
+  // Email content
+  template_type   String    // strike_1, strike_2, strike_3, elimination, etc.
+  subject         String
+  body_html       String?
+  body_text       String?
+  template_data   Json?     // variables for template rendering
+  
+  // Status tracking
+  status          String    @default("pending") // pending, sent, failed, bounced
+  attempts        Int       @default(0)
+  max_attempts    Int       @default(3)
+  last_attempt_at DateTime?
+  last_error      String?
+  sent_at         DateTime?
+  
+  // Deduplication
+  idempotency_key String    @unique // e.g., "strike:user_123:day_5"
+  
+  // Scheduling
+  scheduled_for   DateTime  @default(now())
+  
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([status], name: "idx_email_status")
+  @@index([scheduled_for], name: "idx_email_scheduled")
+  @@index([user_id], name: "idx_email_user")
+  @@map("email_queue")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CRON LOCKS (Prevent concurrent cron runs)
+// ═══════════════════════════════════════════════════════════════════════════════
+model CronLock {
+  id                  Int       @id @default(autoincrement())
+  job_name            String    @unique // nightly_strike_processor, email_sender, etc.
+  
+  // Lock state
+  locked_at           DateTime?
+  locked_by           String?   // instance ID / hostname
+  
+  // Execution tracking
+  last_run_at         DateTime?
+  last_run_status     String?   // running, completed, failed
+  last_run_duration_ms Int?
+  last_error          String?
+  
+  // Stats
+  total_runs          Int       @default(0)
+  total_failures      Int       @default(0)
+  
+  created_at          DateTime  @default(now())
+
+  @@map("cron_locks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ADMIN AUDIT LOG
+// ═══════════════════════════════════════════════════════════════════════════════
+model AdminAuditLog {
+  id            Int       @id @default(autoincrement())
+  admin_user_id Int
+  action        String    // revert_strike, reinstate_user, update_hackerrank_id, etc.
+  target_type   String?   // user, strike, elimination
+  target_id     Int?
+  old_value     Json?
+  new_value     Json?
+  reason        String?
+  ip_address    String?
+  created_at    DateTime  @default(now())
+
+  @@index([admin_user_id], name: "idx_audit_admin")
+  @@index([created_at], name: "idx_audit_date")
+  @@map("admin_audit_log")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ACCOUNT (Admin login system - separate from competition users)
+// ═══════════════════════════════════════════════════════════════════════════════
+model Account {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  name          String
+  password_hash String?
+  role          String   @default("USER") // USER, ADMIN
+  provider      String   @default("EMAIL")
+  google_id     String?  @unique
+  avatar_url    String?
+  hackerrank_id String?  @unique
+  created_at    DateTime @default(now())
+
+  @@map("accounts")
+}

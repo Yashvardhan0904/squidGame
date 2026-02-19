@@ -1,17 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap');
 @import "tailwindcss";
 
-/* Tailwind v4 CSS-first Configuration */
+/* ---- Theme tokens ---- */
 @theme {
   --color-squid-black: #0a0a0a;
-  --color-squid-pink: #ff007f;
+  --color-squid-dark: #111111;
+  --color-squid-pink: #ff2e88;
+  --color-squid-red: #b11226;
   --color-squid-mint: #00ff9f;
+  --color-squid-green: #1db954;
   --color-squid-yellow: #ffff00;
   --color-squid-gray: #1a1a1a;
-  --color-arena-card: #161616;
-  
-  --font-mono: "Courier New", "Roboto Mono", ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --color-squid-card: #141414;
+  --color-squid-border: #222222;
+
+  --font-display: "Orbitron", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-mono: "Share Tech Mono", "Courier New", ui-monospace, monospace;
 }
 
+/* ---- Base ---- */
 :root {
   --background: #0a0a0a;
   --foreground: #ffffff;
@@ -21,90 +29,114 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background-color: var(--background);
   color: var(--foreground);
   margin: 0;
-  font-family: var(--font-mono);
-  position: relative;
+  font-family: var(--font-body);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* CRT Scanline Overlay Effect */
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: repeating-linear-gradient(
-    0deg,
-    rgba(0, 0, 0, 0.15),
-    rgba(0, 0, 0, 0.15) 1px,
-    transparent 1px,
-    transparent 2px
-  );
-  pointer-events: none;
-  z-index: 9999;
-  animation: crt-scanline 8s linear infinite;
+/* ---- Selection ---- */
+::selection {
+  background: rgba(255, 46, 136, 0.25);
+  color: #fff;
 }
 
-@keyframes crt-scanline {
-  0% { transform: translateY(-10px); }
-  100% { transform: translateY(10px); }
+/* ---- Scrollbar (minimal) ---- */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 46, 136, 0.15);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 46, 136, 0.3);
 }
 
-/* Flicker Animation */
+/* ---- Keyframes ---- */
 @keyframes flicker {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+  92% { opacity: 1; }
+  93% { opacity: 0.85; }
+  94% { opacity: 1; }
+  96% { opacity: 0.9; }
+  97% { opacity: 1; }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 5px rgba(255, 0, 127, 0.5); }
-  50% { box-shadow: 0 0 20px rgba(255, 0, 127, 1); }
+  0%, 100% { box-shadow: 0 0 5px rgba(255, 46, 136, 0.2), 0 0 15px rgba(255, 46, 136, 0.05); }
+  50% { box-shadow: 0 0 15px rgba(255, 46, 136, 0.5), 0 0 30px rgba(255, 46, 136, 0.15); }
 }
 
-/* Custom utility classes */
+@keyframes glitch {
+  0% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+  100% { transform: translate(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ---- Utilities ---- */
 @layer utilities {
   .animate-flicker {
-    animation: flicker 0.15s infinite;
+    animation: flicker 3s ease-in-out infinite;
   }
-  
   .animate-pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
+    animation: pulse-glow 2.5s ease-in-out infinite;
   }
-  
-  .text-squid-pink {
-    color: var(--color-squid-pink);
+  .animate-shimmer {
+    animation: shimmer 3s linear infinite;
+    background-size: 200% 100%;
   }
-  
-  .text-squid-mint {
-    color: var(--color-squid-mint);
+  .font-display {
+    font-family: var(--font-display);
   }
-  
-  .text-squid-yellow {
-    color: var(--color-squid-yellow);
+  .font-mono {
+    font-family: var(--font-mono);
   }
-  
-  .bg-squid-black {
-    background-color: var(--color-squid-black);
+  .font-body {
+    font-family: var(--font-body);
   }
-  
-  .bg-squid-gray {
-    background-color: var(--color-squid-gray);
+
+  /* Color utilities */
+  .text-squid-pink { color: var(--color-squid-pink); }
+  .text-squid-red { color: var(--color-squid-red); }
+  .text-squid-mint { color: var(--color-squid-mint); }
+  .text-squid-yellow { color: var(--color-squid-yellow); }
+  .text-squid-green { color: var(--color-squid-green); }
+  .bg-squid-black { background-color: var(--color-squid-black); }
+  .bg-squid-dark { background-color: var(--color-squid-dark); }
+  .bg-squid-gray { background-color: var(--color-squid-gray); }
+  .bg-squid-card { background-color: var(--color-squid-card); }
+  .border-squid-pink { border-color: var(--color-squid-pink); }
+  .border-squid-red { border-color: var(--color-squid-red); }
+  .border-squid-mint { border-color: var(--color-squid-mint); }
+  .border-squid-yellow { border-color: var(--color-squid-yellow); }
+  .border-squid-border { border-color: var(--color-squid-border); }
+
+  /* Thin scrollbar variant */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 3px;
   }
-  
-  .border-squid-pink {
-    border-color: var(--color-squid-pink);
-  }
-  
-  .border-squid-mint {
-    border-color: var(--color-squid-mint);
-  }
-  
-  .border-squid-yellow {
-    border-color: var(--color-squid-yellow);
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(255, 46, 136, 0.1);
+    border-radius: 10px;
   }
 }
