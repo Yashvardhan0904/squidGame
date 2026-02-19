@@ -437,17 +437,19 @@ async function verifyGoogleToken(credential, maxRetries = 3) {
 
 export async function POST(request) {
   try {
-    // Validate environment configuration
-    const configValidation = validateEnvironmentConfig();
-    if (!configValidation.isValid) {
-      const correlationId = logError('Environment validation', new Error(configValidation.error), {
-        severity: 'CRITICAL',
-        missing: configValidation.missing
-      });
-      return NextResponse.json({ 
-        error: 'Server configuration error. Please contact support.',
-        correlationId
-      }, { status: 500 });
+    // Validate environment configuration (skip during build)
+    if (typeof window === 'undefined' && process.env.NEXT_PHASE !== 'phase-production-build') {
+      const configValidation = validateEnvironmentConfig();
+      if (!configValidation.isValid) {
+        const correlationId = logError('Environment validation', new Error(configValidation.error), {
+          severity: 'CRITICAL',
+          missing: configValidation.missing
+        });
+        return NextResponse.json({ 
+          error: 'Server configuration error. Please contact support.',
+          correlationId
+        }, { status: 500 });
+      }
     }
 
     const { credential } = await request.json();
