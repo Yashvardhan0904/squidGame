@@ -1,96 +1,73 @@
-# Critical Fixes Applied - Admin Panel
+# Production Fixes Applied
 
 ## Issues Fixed
 
-### 1. Admin Authentication Not Working
-**Problem**: Stats not loading, contests not showing, 401 Unauthorized errors
+### 1. ❌ `handleStartCompetition is not defined` Error
+**Problem**: AdminPanel was calling `handleStartCompetition` function that didn't exist
+**Solution**: Added the missing function that allows admin to set competition start date
+**Location**: `src/components/AdminPanel.jsx`
 
-**Root Cause**: 
-- Admin middleware was looking for wrong cookie name (`token` instead of `auth_token`)
-- JWT payload field mismatch (`decoded.id` instead of `decoded.accountId`)
+### 2. ❌ `/api/contest/current` 404 Errors
+**Problem**: API was returning 404 status codes causing console errors
+**Solution**: 
+- Changed all error responses to return 200 status with error messages
+- Added better handling for missing COMPETITION_START env variable
+- Added graceful messages for "not started", "ended", and "no contest" states
+**Location**: `src/app/api/contest/current/route.js`
 
-**Fix Applied**:
-- Updated `src/lib/middleware/adminAuth.js`:
-  - Changed cookie lookup from `'token'` to `'auth_token'`
-  - Changed JWT field from `decoded.id` to `decoded.accountId`
+### 3. ❌ ContestStatus Component Error Handling
+**Problem**: Component wasn't handling API errors gracefully
+**Solution**: Updated to check for `data.error` field instead of just HTTP status
+**Location**: `src/components/ContestStatus.jsx`
 
-### 2. Missing Create Contest Feature
-**Problem**: No way to create contests from the UI
+### 4. ❌ Auth Token Being Forgotten/Revoked
+**Problem**: Cookies were not persisting properly in production
+**Solution**: 
+- Changed `secure` flag from conditional to always `true` (Railway uses HTTPS)
+- Ensured consistent cookie settings across login and Google OAuth
+**Locations**: 
+- `src/app/api/auth/login/route.js`
+- `src/app/api/auth/google/route.js`
 
-**Fix Applied**:
-- Added "CREATE CONTEST" button in Actions tab
-- Added contest creation form with fields:
-  - Day Number (1-25)
-  - Contest Slug
-  - Problem Name
-  - Contest URL
-- Form submits to `/api/admin/contests/create` endpoint
+### 5. ❌ UI Scaling Issues on Mobile/Deployment
+**Problem**: UI elements appearing too large after deployment
+**Solution**: 
+- Added proper viewport meta tags
+- Set `maximum-scale=1` and `user-scalable=no` to prevent zoom issues
+- Added viewport export configuration for Next.js
+**Location**: `src/app/layout.js`
 
-### 3. Better Error Handling
-**Added**:
-- Console logging for debugging
-- Alert messages for failed API calls
-- Better error messages in UI
+## Testing Checklist
 
-## How to Test
+After Railway redeploys:
 
-1. **Login as Admin**:
-   - Make sure your account has `role='ADMIN'` in the database
-   - Login via Google OAuth or regular login
+- [ ] Test admin panel "START COMPETITION" button
+- [ ] Check browser console for 404 errors (should be gone)
+- [ ] Test login and verify auth token persists after page refresh
+- [ ] Test Google OAuth login and verify token persistence
+- [ ] Check UI scaling on mobile devices
+- [ ] Verify ContestStatus shows proper messages when no contest exists
 
-2. **Check Overview Tab**:
-   - Should now show stats (Total Users, Active Users, etc.)
-   - Click "Refresh Stats" to reload
+## Environment Variables Required
 
-3. **Create a Contest**:
-   - Go to Actions tab
-   - Click "CREATE CONTEST" button
-   - Fill in the form:
-     - Day Number: 1
-     - Contest Slug: acm-squid-game-day-1
-     - Problem Name: Two Sum
-     - Contest URL: https://www.hackerrank.com/contests/acm-squid-game-day-1
-   - Click "CREATE CONTEST"
+Make sure these are set in Railway:
 
-4. **View Contests**:
-   - Go to Contests tab
-   - Should see the created contest
-   - Can click "Scrape", "Process", "Backup" buttons
-
-5. **Check Emails Tab**:
-   - Should show email queue (if any emails exist)
-
-6. **Check Audit Logs Tab**:
-   - Should show recent admin actions
-   - Can export to CSV
-
-## Database Setup
-
-Make sure you have an admin user:
-
-```sql
-UPDATE accounts SET role = 'ADMIN' WHERE email = 'your-email@example.com';
+```env
+JWT_SECRET=your-jwt-secret
+COMPETITION_START=2026-02-20T09:00:00+05:30
+CRON_SECRET=your-cron-secret
 ```
 
 ## Next Steps
 
-1. Test the complete workflow:
-   - Create Contest → Scrape → Process → Backup
+1. Wait for Railway to redeploy (automatic after git push)
+2. Test all the fixed functionality
+3. If auth still has issues, check Railway logs for cookie-related errors
+4. Test the GitHub Actions cron job manually from Actions tab
 
-2. Upload users via CSV in Actions tab
+## Notes
 
-3. Monitor email queue in Emails tab
-
-4. Check audit logs for all admin actions
-
-## Files Modified
-
-1. `src/lib/middleware/adminAuth.js` - Fixed authentication
-2. `src/components/AdminPanel.jsx` - Added create contest form and better error handling
-3. `acm-squidGame/.gitignore` - Cleaned up
-4. `acm-squidGame/.env.example` - Added template
-5. `acm-squidGame/README.md` - Updated documentation
-
-## Everything is Now Working! 🎉
-
-The admin panel is fully functional and ready for production use.
+- All cookie settings now use `secure: true` for production HTTPS
+- Contest API now returns 200 status with error messages to avoid console spam
+- Viewport is locked to prevent unwanted zooming on mobile
+- Admin can now set competition start date from the Actions tab
