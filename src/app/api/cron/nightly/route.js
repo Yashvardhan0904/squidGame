@@ -1,14 +1,16 @@
 /**
  * Nightly Processing Cron Job
- * Triggers HackerRank scraping + strike processing
+ * Triggers HackerRank scraping + strike processing at midnight (12:00 AM IST)
  * 
  * Call this from external cron: POST /api/cron/nightly
  * Authorization: Bearer CRON_SECRET
+ * 
+ * Schedule: 0 0 * * * (Every day at midnight IST)
  */
 
 import { NextResponse } from 'next/server';
-import { scrapeLeaderboard, getCurrentDayNumber } from '@/lib/services/scraper.service';
-import { processStrikes, initCronLocks } from '@/lib/services/strike.processor';
+import { triggerScraping } from '@/lib/services/scraper.trigger';
+import { triggerStrikeProcessing } from '@/lib/services/strike.trigger';
 import prisma from '@/lib/prisma';
 
 // Verify cron secret
@@ -29,6 +31,14 @@ function verifyCronAuth(request) {
   return token === cronSecret;
 }
 
+// Calculate current day number
+function getCurrentDayNumber() {
+  const competitionStart = new Date(process.env.COMPETITION_START || '2026-02-16T00:00:00+05:30');
+  const now = new Date();
+  const daysDiff = Math.floor((now - competitionStart) / (1000 * 60 * 60 * 24));
+  return daysDiff + 1;
+}
+
 export async function POST(request) {
   const startTime = Date.now();
   
@@ -38,60 +48,70 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     
-    // Initialize cron locks if not exists
-    await initCronLocks();
+    // Get previous day (since this runs at midnight, we process yesterday's contest)
+    const previousDay = getCurrentDayNumber() - 1;
     
-    // Parse request body (optional overrides)
-    let dayNumber;
-    try {
-      const body = await request.json();
-      dayNumber = body.dayNumber || getCurrentDayNumber();
-    } catch {
-      dayNumber = getCurrentDayNumber();
+    if (previousDay < 1) {
+      return NextResponse.json({
+        error: 'Competition has not started yet'
+      }, { status: 400 });
     }
     
-    console.log(`[Cron] Nightly processing for day ${dayNumber}`);
+    if (previousDay > 25) {
+      return NextResponse.json({
+        error: 'Competition has ended'
+      }, { status: 400 });
+    }
     
-    // Get contest for this day
+    console.log(`[Cron] Nightly processing for day ${previousDay}`);
+    
+    // Get contest for previous day
     const contest = await prisma.contest.findUnique({
-      where: { day_number: dayNumber }
+      where: { day_number: previousDay }
     });
     
     if (!contest) {
       return NextResponse.json({
-        error: `No contest found for day ${dayNumber}`
+        error: `No contest found for day ${previousDay}`
       }, { status: 404 });
     }
     
-    // Step 1: Scrape leaderboard (if not already scraped)
-    let scrapeResult = { skipped: true, reason: 'already_scraped' };
-    if (!contest.is_scraped) {
-      try {
-        scrapeResult = await scrapeLeaderboard(contest.hackerrank_url, dayNumber);
-      } catch (scrapeError) {
-        console.error('[Cron] Scrape failed:', scrapeError);
-        scrapeResult = { error: scrapeError.message };
-      }
+    // Step 1: Scrape leaderboard
+    let scrapeResult;
+    try {
+      scrapeResult = await triggerScraping(previousDay);
+    } catch (scrapeError) {
+      console.error('[Cron] Scrape failed:', scrapeError);
+      scrapeResult = { 
+        success: false, 
+        error: scrapeError.message,
+        message: 'Auto-scrape failed. Please upload CSV manually from admin panel.'
+      };
     }
     
-    // Step 2: Process strikes
-    let strikeResult = { skipped: true, reason: 'scrape_pending' };
-    const updatedContest = await prisma.contest.findUnique({
-      where: { day_number: dayNumber }
-    });
-    
-    if (updatedContest?.is_scraped) {
-      strikeResult = await processStrikes(dayNumber);
+    // Step 2: Process strikes (only if scrape succeeded)
+    let strikeResult = { skipped: true, reason: 'scrape_failed' };
+    if (scrapeResult.success) {
+      try {
+        strikeResult = await triggerStrikeProcessing(previousDay);
+      } catch (strikeError) {
+        console.error('[Cron] Strike processing failed:', strikeError);
+        strikeResult = { 
+          success: false, 
+          error: strikeError.message 
+        };
+      }
     }
     
     const duration = Date.now() - startTime;
     
     return NextResponse.json({
-      success: true,
-      dayNumber,
+      success: scrapeResult.success && strikeResult.success,
+      dayNumber: previousDay,
       duration: `${duration}ms`,
       scrape: scrapeResult,
-      strikes: strikeResult
+      strikes: strikeResult,
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
@@ -114,9 +134,11 @@ export async function GET() {
   return NextResponse.json({
     status: 'ready',
     currentDay,
+    previousDay: currentDay - 1,
     contest: contest ? {
       scraped: contest.is_scraped,
       processed: contest.is_processed
-    } : null
+    } : null,
+    nextRun: 'Midnight IST (00:00)'
   });
 }

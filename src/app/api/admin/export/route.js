@@ -1,58 +1,43 @@
 /**
- * Leaderboard CSV Export API
- * Export full leaderboard as CSV with all daily scores and strikes
+ * All Users CSV Export API
+ * Export all users with their complete data
  * 
  * GET /api/admin/export
  */
 
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
-import { exportLeaderboardCSV } from '@/lib/services/leaderboard.service';
-
-async function getAdminUser(request) {
-  const cookieStore = await cookies();
-  // Check both possible cookie names
-  const tokenCookie = cookieStore.get('auth_token') || cookieStore.get('token');
-  
-  if (!tokenCookie?.value) {
-    return null;
-  }
-  
-  try {
-    const decoded = jwt.verify(tokenCookie.value, process.env.JWT_SECRET);
-    if (decoded.role !== 'ADMIN') {
-      return null;
-    }
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireAdmin } from '@/lib/middleware/adminAuth';
+import { exportAllUsers } from '@/lib/services/export.service';
 
 export async function GET(request) {
   try {
-    const admin = await getAdminUser(request);
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Verify admin authentication
+    const adminUser = await requireAdmin(request);
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Admin access required' },
+        { status: 401 }
+      );
     }
     
-    const csv = await exportLeaderboardCSV();
+    // Generate CSV
+    const csv = await exportAllUsers();
     const date = new Date().toISOString().split('T')[0];
     
     return new Response(csv, {
       status: 200,
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="squidgame-leaderboard-${date}.csv"`,
+        'Content-Disposition': `attachment; filename="all-users-${date}.csv"`,
         'Cache-Control': 'no-cache'
       }
     });
     
   } catch (error) {
-    console.error('[Admin] Export failed:', error);
-    return NextResponse.json({
-      error: error.message
-    }, { status: 500 });
+    console.error('[API] Export all users failed:', error);
+    return NextResponse.json(
+      { error: 'Failed to export users', details: error.message },
+      { status: 500 }
+    );
   }
 }

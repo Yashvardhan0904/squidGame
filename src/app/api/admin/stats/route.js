@@ -6,56 +6,39 @@
  */
 
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import jwt from 'jsonwebtoken';
-import { getContestStats, getAuditLogs, getEliminatedUsers } from '@/lib/services/admin.service';
-import { getCompetitionOverview } from '@/lib/services/leaderboard.service';
-
-async function getAdminUser(request) {
-  const cookieStore = await cookies();
-  const tokenCookie = cookieStore.get('token');
-  
-  if (!tokenCookie?.value) {
-    return null;
-  }
-  
-  try {
-    const decoded = jwt.verify(tokenCookie.value, process.env.JWT_SECRET);
-    if (decoded.role !== 'ADMIN') {
-      return null;
-    }
-    return decoded;
-  } catch {
-    return null;
-  }
-}
+import { requireAdmin } from '@/lib/middleware/adminAuth';
+import { getContestStats, getRecentAuditLogs, getEliminatedUsers } from '@/lib/services/admin.service';
 
 export async function GET(request) {
   try {
-    const admin = await getAdminUser(request);
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Verify admin authentication
+    const adminUser = await requireAdmin(request);
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Admin access required' },
+        { status: 401 }
+      );
     }
     
-    const [contestStats, overview, recentAudit, eliminatedUsers] = await Promise.all([
+    // Fetch comprehensive dashboard data
+    const [stats, recentLogs, eliminatedUsers] = await Promise.all([
       getContestStats(),
-      getCompetitionOverview(),
-      getAuditLogs({ limit: 10 }),
-      getEliminatedUsers()
+      getRecentAuditLogs(10),
+      getEliminatedUsers(50)
     ]);
     
     return NextResponse.json({
       success: true,
-      stats: contestStats,
-      overview,
-      recentAudit: recentAudit.logs,
-      eliminatedUsers: eliminatedUsers.slice(0, 50) // Limit for performance
+      stats,
+      recentAuditLogs: recentLogs,
+      eliminatedUsers
     });
     
   } catch (error) {
-    console.error('[Admin] Stats failed:', error);
-    return NextResponse.json({
-      error: error.message
-    }, { status: 500 });
+    console.error('[API] Dashboard stats error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch dashboard stats', details: error.message },
+      { status: 500 }
+    );
   }
 }

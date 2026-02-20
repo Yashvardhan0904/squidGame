@@ -132,23 +132,48 @@ export async function revertStrike(adminUserId, userId, dayNumber, reason) {
 }
 
 /**
- * Get admin audit trail
+ * Get admin audit trail with filtering and search
  */
 export async function getAuditLogs(options = {}) {
-  const { page = 1, limit = 50, adminId, action } = options;
+  const { 
+    page = 1, 
+    limit = 50, 
+    adminId, 
+    action,
+    startDate,
+    endDate,
+    searchText
+  } = options;
 
   const where = {};
-  if (adminId) where.admin_user_id = adminId;
-  if (action) where.action = action;
+  
+  // Filter by admin user
+  if (adminId) {
+    where.admin_user_id = adminId;
+  }
+  
+  // Filter by action type
+  if (action) {
+    where.action = action;
+  }
+  
+  // Filter by date range
+  if (startDate || endDate) {
+    where.created_at = {};
+    if (startDate) where.created_at.gte = new Date(startDate);
+    if (endDate) where.created_at.lte = new Date(endDate);
+  }
+  
+  // Text search on reason field
+  if (searchText && searchText.trim().length > 0) {
+    where.OR = [
+      { reason: { contains: searchText, mode: 'insensitive' } }
+    ];
+  }
 
   const [logs, total] = await Promise.all([
     prisma.adminAuditLog.findMany({
       where,
-      include: {
-        admin_user: {
-          select: { id: true, name: true, email: true }
-        }
-      },
       orderBy: { created_at: 'desc' },
       skip: (page - 1) * limit,
       take: limit
@@ -156,13 +181,20 @@ export async function getAuditLogs(options = {}) {
     prisma.adminAuditLog.count({ where })
   ]);
 
-  return { logs, total, page, limit };
+  return { 
+    logs, 
+    total, 
+    page, 
+    limit,
+    totalPages: Math.ceil(total / limit)
+  };
 }
 
 /**
  * Get all eliminated users (with reinstatement status)
+ * Limited to 50 most recent eliminations for dashboard
  */
-export async function getEliminatedUsers() {
+export async function getEliminatedUsers(limit = 50) {
   const users = await prisma.user.findMany({
     where: {
       OR: [
@@ -184,7 +216,8 @@ export async function getEliminatedUsers() {
         }
       }
     },
-    orderBy: { eliminated_on: 'desc' }
+    orderBy: { eliminated_on: 'desc' },
+    take: limit
   });
 
   return users;
@@ -240,14 +273,28 @@ export async function getContestStats() {
     prisma.emailQueue.count({ where: { status: 'pending' } })
   ]);
 
+  const survivalRate = totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : 0;
+
   return {
     totalUsers,
     activeUsers,
     eliminatedUsers,
-    survivalRate: totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : 0,
+    survivalRate,
     processedDays,
     pendingEmails
   };
+}
+
+/**
+ * Get recent audit logs for dashboard
+ */
+export async function getRecentAuditLogs(limit = 10) {
+  const logs = await prisma.adminAuditLog.findMany({
+    take: limit,
+    orderBy: { created_at: 'desc' }
+  });
+
+  return logs;
 }
 
 const adminService = {
@@ -256,7 +303,8 @@ const adminService = {
   getAuditLogs,
   getEliminatedUsers,
   manualProcessDay,
-  getContestStats
+  getContestStats,
+  getRecentAuditLogs
 };
 
 export default adminService;

@@ -77,6 +77,11 @@ export async function scrapeLeaderboard(contestSlug, dayNumber) {
 
       // Safety limit
       if (offset > 10000) break;
+
+      // Rate limiting: 1 second delay between requests to avoid blocking
+      if (hasMore && data.models.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
 
     console.log(`[Scraper] Found ${results.length} participants for day ${dayNumber}`);

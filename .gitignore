@@ -30,8 +30,15 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# env files (IMPORTANT: Never commit these!)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+
+# EXCEPT: Keep .env.example for documentation
+!.env.example
 
 # vercel
 .vercel
@@ -40,10 +47,41 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# prisma
 /src/generated/prisma
 
-# CSV exports
+# CSV exports and backups
 /exports
+/backups
+*.csv
+
+# Lint results
+lint_results*.txt
+
+# Test files
+test-emails.js
 
 # Firebase service account (legacy)
 firebase-service-account.json
+
+# Kiro specs (optional - remove if you want to keep)
+/.kiro
+
+# New test files (existing tracked test files will remain)
+# To track new test files, use: git add -f <test-file>
+*.property.test.js
+*.integration.test.js
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

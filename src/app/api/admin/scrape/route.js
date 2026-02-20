@@ -1,14 +1,14 @@
 /**
- * Admin Process Day API
- * Manually trigger strike processing for a specific day
+ * Admin Scrape Leaderboard API
+ * Manually trigger leaderboard scraping for a specific day
  * 
- * POST /api/admin/process
+ * POST /api/admin/scrape
  * Body: { dayNumber: number }
  */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware/adminAuth';
-import { triggerStrikeProcessing } from '@/lib/services/strike.trigger';
+import { triggerScraping } from '@/lib/services/scraper.trigger';
 
 export async function POST(request) {
   try {
@@ -27,23 +27,22 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Trigger strike processing
-    const result = await triggerStrikeProcessing(dayNumber, admin.id);
+    // Trigger scraping
+    const result = await triggerScraping(dayNumber);
     
     return NextResponse.json({
       success: true,
-      message: `Successfully processed strikes for day ${dayNumber}`,
+      message: `Successfully scraped leaderboard for day ${dayNumber}`,
       ...result
     });
     
   } catch (error) {
-    console.error('[Admin] Process failed:', error);
+    console.error('[Admin] Scrape failed:', error);
     
     // Return validation errors with 400 status
     if (error.message.includes('must be between') ||
         error.message.includes('not found') ||
-        error.message.includes('not been scraped') ||
-        error.message.includes('already been processed')) {
+        error.message.includes('no contest_slug')) {
       return NextResponse.json({
         error: error.message
       }, { status: 400 });
@@ -51,7 +50,8 @@ export async function POST(request) {
     
     // Return server errors with 500 status
     return NextResponse.json({
-      error: error.message
+      error: error.message,
+      details: 'Scraping failed. Check contest_slug and HackerRank availability.'
     }, { status: 500 });
   }
 }

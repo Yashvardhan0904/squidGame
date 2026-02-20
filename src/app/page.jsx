@@ -13,6 +13,7 @@ import AdminPanel from '../components/AdminPanel';
 import Footer from '../components/Footer';
 import MarqueeStrip from '../components/MarqueeStrip';
 import HackerRankLinkModal from '../components/HackerRankLinkModal';
+import ContestStatus from '../components/ContestStatus';
 import { CircleSymbol, TriangleSymbol, SquareSymbol } from '../components/SquidSymbols';
 
 const ParticleBackground = dynamic(() => import('../components/ParticleBackground'), { ssr: false });
@@ -310,12 +311,17 @@ export default function SquidGameArena() {
       {/* Arena content */}
       <div ref={arenaRef}>
         <AnimatePresence>
-          {(showArena || players.length > 0) && (
+          {(showArena || players.length >= 0) && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8 }}
             >
+              {/* Contest Status Banner */}
+              <div className="max-w-7xl mx-auto px-6 py-12">
+                <ContestStatus />
+              </div>
+
               {/* Mid-marquee separator */}
               <MarqueeStrip
                 items={['CONTROL ROOM', 'LIVE STATUS', 'ARENA OVERVIEW', 'REAL-TIME DATA']}

@@ -1,9 +1,19 @@
 import { NextResponse } from 'next/server';
+import { requireAdmin } from '@/lib/middleware/adminAuth';
 import prisma from '../../../../../lib/prisma';
 
-// POST /api/db/players/upload - Upload CSV and upsert players
+// POST /api/db/players/upload - Upload CSV and upsert players (Admin only)
 export async function POST(request) {
   try {
+    // Verify admin authentication
+    const adminUser = await requireAdmin(request);
+    if (!adminUser) {
+      return NextResponse.json(
+        { error: 'Unauthorized: Admin access required' },
+        { status: 401 }
+      );
+    }
+
     const { players } = await request.json();
 
     if (!players || !Array.isArray(players) || players.length === 0) {

@@ -1,14 +1,14 @@
 /**
- * Admin Process Day API
- * Manually trigger strike processing for a specific day
+ * Admin Reprocess Day API
+ * Reprocess a contest day (idempotent operation)
  * 
- * POST /api/admin/process
+ * POST /api/admin/reprocess
  * Body: { dayNumber: number }
  */
 
 import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware/adminAuth';
-import { triggerStrikeProcessing } from '@/lib/services/strike.trigger';
+import { reprocessDay } from '@/lib/services/reprocess.service';
 
 export async function POST(request) {
   try {
@@ -27,23 +27,22 @@ export async function POST(request) {
       }, { status: 400 });
     }
     
-    // Trigger strike processing
-    const result = await triggerStrikeProcessing(dayNumber, admin.id);
+    // Reprocess day
+    const result = await reprocessDay(dayNumber, admin.id);
     
     return NextResponse.json({
       success: true,
-      message: `Successfully processed strikes for day ${dayNumber}`,
+      message: `Successfully reprocessed day ${dayNumber}`,
       ...result
     });
     
   } catch (error) {
-    console.error('[Admin] Process failed:', error);
+    console.error('[Admin] Reprocess failed:', error);
     
     // Return validation errors with 400 status
     if (error.message.includes('must be between') ||
         error.message.includes('not found') ||
-        error.message.includes('not been scraped') ||
-        error.message.includes('already been processed')) {
+        error.message.includes('not been scraped')) {
       return NextResponse.json({
         error: error.message
       }, { status: 400 });
