@@ -1,0 +1,33 @@
+name: Nightly Scrape & Process
+
+on:
+  schedule:
+    # Runs at 18:30 UTC (00:00 IST / Midnight)
+    - cron: '30 18 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub Actions tab
+
+jobs:
+  scrape-and-process:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Trigger Nightly Processing
+        run: |
+          response=$(curl -X POST ${{ secrets.RAILWAY_APP_URL }}/api/cron/nightly \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -w "\n%{http_code}" \
+            -s)
+          
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+          
+          echo "HTTP Status: $http_code"
+          echo "Response: $body"
+          
+          if [ "$http_code" -ne 200 ]; then
+            echo "❌ Cron job failed with status $http_code"
+            exit 1
+          fi
+          
+          echo "✅ Cron job completed successfully"
