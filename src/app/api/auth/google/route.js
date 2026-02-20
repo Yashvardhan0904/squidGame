@@ -290,11 +290,9 @@ function generateAuthToken(account) {
  * Ensures secure flag is set in production
  */
 function getCookieConfig() {
-  const isProduction = process.env.NODE_ENV === 'production';
-  
   return {
     httpOnly: true,
-    secure: isProduction,
+    secure: true, // Always use secure (Railway uses HTTPS)
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
     path: '/'

@@ -10,8 +10,16 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
+    // Check if COMPETITION_START is set
+    if (!process.env.COMPETITION_START) {
+      return NextResponse.json({
+        error: 'Competition not started',
+        message: 'Admin needs to set competition start date'
+      }, { status: 200 }); // Return 200 to avoid console errors
+    }
+
     // Get competition start date from env
-    const competitionStart = new Date(process.env.COMPETITION_START || '2026-02-16T00:00:00+05:30');
+    const competitionStart = new Date(process.env.COMPETITION_START);
     const now = new Date();
     
     // Calculate current day number (1-25)
@@ -22,14 +30,16 @@ export async function GET() {
     if (currentDay < 1) {
       return NextResponse.json({
         error: 'Competition has not started yet',
-        startsOn: competitionStart.toISOString()
-      }, { status: 404 });
+        startsOn: competitionStart.toISOString(),
+        message: `Competition starts on ${competitionStart.toLocaleDateString()}`
+      }, { status: 200 });
     }
     
     if (currentDay > 25) {
       return NextResponse.json({
-        error: 'Competition has ended'
-      }, { status: 404 });
+        error: 'Competition has ended',
+        message: 'All 25 days completed'
+      }, { status: 200 });
     }
     
     // Get today's contest
@@ -49,8 +59,9 @@ export async function GET() {
     if (!contest) {
       return NextResponse.json({
         error: 'No contest found for today',
-        dayNumber: currentDay
-      }, { status: 404 });
+        dayNumber: currentDay,
+        message: `Contest for Day ${currentDay} not created yet`
+      }, { status: 200 });
     }
     
     // Calculate today's contest timing (9 AM - 11:59 PM IST)

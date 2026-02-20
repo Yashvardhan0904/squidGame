@@ -28,13 +28,17 @@ export default function ContestStatus() {
   const fetchContestInfo = async () => {
     try {
       const res = await fetch('/api/contest/current');
-      if (res.ok) {
-        const data = await res.json();
-        setContestInfo(data);
-        updateTimeLeft(data);
-      } else {
+      const data = await res.json();
+      
+      // Check if there's an error in the response
+      if (data.error) {
         setStatus('no-contest');
+        setContestInfo(null);
+        return;
       }
+      
+      setContestInfo(data);
+      updateTimeLeft(data);
     } catch (error) {
       console.error('Failed to fetch contest info:', error);
       setStatus('no-contest');

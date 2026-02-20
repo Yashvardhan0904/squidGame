@@ -193,6 +193,33 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
     }
   };
 
+  const handleStartCompetition = async () => {
+    const startDate = prompt('Enter competition start date (YYYY-MM-DD) or leave empty for today:');
+    if (startDate === null) return; // User cancelled
+    
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/start-competition', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          startDate: startDate || new Date().toISOString().split('T')[0]
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Competition started! Start date: ${data.startDate}`);
+        fetchStats();
+      } else {
+        alert(`Failed to start competition: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Failed to start competition: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <section id="admin" className="relative py-20 md:py-28">
       <div className="max-w-7xl mx-auto px-6">
