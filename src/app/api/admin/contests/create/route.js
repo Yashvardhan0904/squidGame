@@ -20,16 +20,36 @@ export async function POST(request) {
     
     // Parse request body
     const body = await request.json();
-    const { day_number, contest_slug, contest_url, problem_name, start_time, end_time } = body;
-    
-    // Create contest day
-    const contest = await createContestDay({
+    const {
       day_number,
       contest_slug,
       contest_url,
       problem_name,
-      start_time: start_time ? new Date(start_time) : undefined,
-      end_time: end_time ? new Date(end_time) : undefined
+      dayNumber,
+      contestSlug,
+      contestUrl,
+      problemName,
+      start_time,
+      end_time,
+      startTime,
+      endTime
+    } = body;
+
+    const normalizedDayNumber = day_number ?? dayNumber;
+    const normalizedContestSlug = contest_slug ?? contestSlug;
+    const normalizedContestUrl = contest_url ?? contestUrl;
+    const normalizedProblemName = problem_name ?? problemName;
+    const normalizedStartTime = start_time ?? startTime;
+    const normalizedEndTime = end_time ?? endTime;
+    
+    // Create contest day
+    const contest = await createContestDay({
+      day_number: normalizedDayNumber,
+      contest_slug: normalizedContestSlug,
+      contest_url: normalizedContestUrl,
+      problem_name: normalizedProblemName,
+      start_time: normalizedStartTime ? new Date(normalizedStartTime) : undefined,
+      end_time: normalizedEndTime ? new Date(normalizedEndTime) : undefined
     });
     
     return NextResponse.json({

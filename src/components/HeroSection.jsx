@@ -8,7 +8,7 @@ import CountdownTimer from './CountdownTimer';
 import { CircleSymbol, TriangleSymbol, SquareSymbol } from './SquidSymbols';
 import MarqueeStrip from './MarqueeStrip';
 
-export default function HeroSection({ survivorCount = 0, eliminatedCount = 0, totalPlayers = 0 }) {
+export default function HeroSection({ survivorCount = 0, eliminatedCount = 0, totalPlayers = 0, contestUrl = '' }) {
   const challengeEndDate = '2026-03-12T23:59:59';
   const containerRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -25,7 +25,7 @@ export default function HeroSection({ survivorCount = 0, eliminatedCount = 0, to
   ];
 
   return (
-    <section ref={containerRef} className="relative min-h-[100svh] flex flex-col overflow-hidden" id="hero">
+    <section ref={containerRef} className="relative min-h-svh flex flex-col overflow-hidden" id="hero">
       {/* Background */}
       <div className="absolute inset-0 bg-squid-black" />
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,46,136,0.06)_0%,transparent_50%)]" />
@@ -41,12 +41,12 @@ export default function HeroSection({ survivorCount = 0, eliminatedCount = 0, to
 
       {/* Side text */}
       <div className="absolute left-6 top-1/2 -translate-y-1/2 hidden xl:flex flex-col items-center gap-4 z-10">
-        <div className="w-px h-20 bg-gradient-to-b from-transparent via-squid-pink/30 to-transparent" />
+        <div className="w-px h-20 bg-linear-to-b from-transparent via-squid-pink/30 to-transparent" />
         <span className="font-mono text-[10px] text-gray-600 tracking-[0.3em]"
           style={{ writingMode: 'vertical-lr', transform: 'rotate(180deg)' }}>
           SCROLL TO EXPLORE
         </span>
-        <div className="w-px h-20 bg-gradient-to-b from-transparent via-squid-pink/30 to-transparent" />
+        <div className="w-px h-20 bg-linear-to-b from-transparent via-squid-pink/30 to-transparent" />
       </div>
 
       {/* Content */}
@@ -141,19 +141,23 @@ export default function HeroSection({ survivorCount = 0, eliminatedCount = 0, to
 
         {/* CTA */}
         <motion.a
-          href="https://www.hackerrank.com/contests" 
-          target="_blank"
-          rel="noopener noreferrer"
+          href={contestUrl || '#'}
+          target={contestUrl ? '_blank' : undefined}
+          rel={contestUrl ? 'noopener noreferrer' : undefined}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.6, duration: 0.5 }}
-          whileHover={{ scale: 1.03, y: -2 }}
-          whileTap={{ scale: 0.97 }}
+          whileHover={contestUrl ? { scale: 1.03, y: -2 } : undefined}
+          whileTap={contestUrl ? { scale: 0.97 } : undefined}
           className="mt-12 group relative px-10 py-4 bg-squid-pink text-black font-display font-bold text-sm tracking-wider
-            overflow-hidden transition-all duration-300 shadow-[0_0_30px_rgba(255,46,136,0.3)] hover:shadow-[0_0_50px_rgba(255,46,136,0.5)] cursor-pointer"
+            overflow-hidden transition-all duration-300 shadow-[0_0_30px_rgba(255,46,136,0.3)] hover:shadow-[0_0_50px_rgba(255,46,136,0.5)]"
+          style={{
+            opacity: contestUrl ? 1 : 0.6,
+            cursor: contestUrl ? 'pointer' : 'not-allowed'
+          }}
         >
           <span className="relative z-10 flex items-center gap-2">
-            ENTER THE ARENA
+            {contestUrl ? 'ENTER THE ARENA' : 'WAITING FOR ADMIN TO START CONTEST'}
             <ArrowDown size={16} className="group-hover:translate-y-0.5 transition-transform" />
           </span>
         </motion.a>

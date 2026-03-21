@@ -126,6 +126,27 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
     }
   };
 
+  const handleStartContest = async (dayNumber) => {
+    if (!confirm(`Start contest for Day ${dayNumber} now?`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/contests/${dayNumber}/start`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Day ${dayNumber} contest is now live.`);
+        fetchContests();
+      } else {
+        alert(`Start failed: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Start failed: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBackup = async (dayNumber) => {
     setLoading(true);
     try {
@@ -263,6 +284,7 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
               contests={contests} 
               onScrape={handleScrape}
               onProcess={handleProcess}
+              onStartContest={handleStartContest}
               onBackup={handleBackup}
               loading={loading}
             />
@@ -353,7 +375,7 @@ function OverviewTab({ stats, onRefresh }) {
 }
 
 // Contests Tab Component
-function ContestsTab({ contests, onScrape, onProcess, onBackup, loading }) {
+function ContestsTab({ contests, onScrape, onProcess, onStartContest, onBackup, loading }) {
   return (
     <div className="space-y-4">
       {contests.length === 0 ? (
@@ -373,8 +395,27 @@ function ContestsTab({ contests, onScrape, onProcess, onBackup, loading }) {
                 <h3 className="text-white font-display font-bold">Day {contest.day_number}</h3>
                 <p className="text-gray-500 text-sm font-mono mt-1">{contest.problem_name || 'No problem name'}</p>
                 <p className="text-gray-600 text-xs font-mono mt-2">{contest.contest_slug}</p>
+                {contest.contest_url && (
+                  <a
+                    href={contest.contest_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-squid-pink font-mono mt-2 inline-block hover:underline"
+                  >
+                    Open contest link
+                  </a>
+                )}
               </div>
               <div className="flex gap-2">
+                {contest.contest_url && contest.problem_name && (
+                  <button
+                    onClick={() => onStartContest(contest.day_number)}
+                    disabled={loading}
+                    className="px-3 py-1.5 bg-squid-pink/10 text-squid-pink border border-squid-pink/20 rounded-lg text-xs font-mono hover:bg-squid-pink/20 transition-all disabled:opacity-50"
+                  >
+                    Start Contest
+                  </button>
+                )}
                 {!contest.is_scraped && (
                   <button
                     onClick={() => onScrape(contest.day_number)}
@@ -605,7 +646,7 @@ function ActionsTab({ onSync, onSimulate, onReset, onCsvUpload, onExport, onExpo
             font-mono text-xs border border-dashed transition-all duration-300
             ${uploading
               ? 'border-gray-700 text-gray-600 cursor-wait'
-              : 'border-squid-border/50 text-gray-400 hover:border-squid-pink/40 hover:text-squid-pink hover:bg-squid-pink/[0.03]'
+              : 'border-squid-border/50 text-gray-400 hover:border-squid-pink/40 hover:text-squid-pink hover:bg-squid-pink/3'
             }`}
           >
             <Upload size={14} />

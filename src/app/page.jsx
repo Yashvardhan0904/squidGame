@@ -29,6 +29,7 @@ export default function SquidGameArena() {
   const [exportingEliminated, setExportingEliminated] = useState(false);
   const [showArena, setShowArena] = useState(false);
   const [user, setUser] = useState(null);
+  const [currentContest, setCurrentContest] = useState(null);
   const [showLinkPrompt, setShowLinkPrompt] = useState(false);
   const arenaRef = useRef(null);
   const isAdmin = user?.role === 'ADMIN';
@@ -83,12 +84,32 @@ export default function SquidGameArena() {
     }
   }, []);
 
+  const fetchCurrentContest = useCallback(async () => {
+    try {
+      const res = await fetch('/api/contest/current');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.error) {
+        setCurrentContest(null);
+        return;
+      }
+      setCurrentContest(data);
+    } catch (error) {
+      console.error('Error fetching current contest:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPlayers();
     fetchStats();
-    const interval = setInterval(() => { fetchPlayers(); fetchStats(); }, 10000);
+    fetchCurrentContest();
+    const interval = setInterval(() => {
+      fetchPlayers();
+      fetchStats();
+      fetchCurrentContest();
+    }, 10000);
     return () => clearInterval(interval);
-  }, [fetchPlayers, fetchStats]);
+  }, [fetchPlayers, fetchStats, fetchCurrentContest]);
 
   // ── Computed values ─────────────────────────────────────────────
   const survivors = players.filter(p => !p.eliminated);
@@ -306,6 +327,7 @@ export default function SquidGameArena() {
         survivorCount={survivors.length}
         eliminatedCount={eliminated.length}
         totalPlayers={players.length}
+        contestUrl={currentContest?.contestUrl || ''}
       />
 
       {/* Arena content */}

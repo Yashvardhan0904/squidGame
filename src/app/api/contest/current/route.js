@@ -10,41 +10,15 @@ import prisma from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Check if COMPETITION_START is set
-    if (!process.env.COMPETITION_START) {
-      return NextResponse.json({
-        error: 'Competition not started',
-        message: 'Admin needs to set competition start date'
-      }, { status: 200 }); // Return 200 to avoid console errors
-    }
-
-    // Get competition start date from env
-    const competitionStart = new Date(process.env.COMPETITION_START);
     const now = new Date();
-    
-    // Calculate current day number (1-25)
-    const daysDiff = Math.floor((now - competitionStart) / (1000 * 60 * 60 * 24));
-    const currentDay = daysDiff + 1;
-    
-    // Check if competition has started or ended
-    if (currentDay < 1) {
-      return NextResponse.json({
-        error: 'Competition has not started yet',
-        startsOn: competitionStart.toISOString(),
-        message: `Competition starts on ${competitionStart.toLocaleDateString()}`
-      }, { status: 200 });
-    }
-    
-    if (currentDay > 25) {
-      return NextResponse.json({
-        error: 'Competition has ended',
-        message: 'All 25 days completed'
-      }, { status: 200 });
-    }
-    
-    // Get today's contest
-    const contest = await prisma.contest.findUnique({
-      where: { day_number: currentDay },
+
+    // Prefer contests explicitly started by admin (start_time is set).
+    const activeContest = await prisma.contest.findFirst({
+      where: {
+        start_time: { not: null, lte: now },
+        OR: [{ end_time: null }, { end_time: { gte: now } }]
+      },
+      orderBy: [{ day_number: 'desc' }],
       select: {
         id: true,
         day_number: true,
@@ -55,22 +29,39 @@ export async function GET() {
         is_processed: true
       }
     });
+
+    const upcomingContest = await prisma.contest.findFirst({
+      where: {
+        start_time: { not: null, gt: now }
+      },
+      orderBy: [{ start_time: 'asc' }],
+      select: {
+        id: true,
+        day_number: true,
+        contest_slug: true,
+        contest_url: true,
+        problem_name: true,
+        start_time: true,
+        end_time: true,
+        is_scraped: true,
+        is_processed: true
+      }
+    });
+
+    const contest = activeContest || upcomingContest;
     
     if (!contest) {
       return NextResponse.json({
-        error: 'No contest found for today',
-        dayNumber: currentDay,
-        message: `Contest for Day ${currentDay} not created yet`
+        error: 'No active contest',
+        message: 'Admin has not started a contest yet'
       }, { status: 200 });
     }
-    
-    // Calculate today's contest timing (9 AM - 11:59 PM IST)
-    const today = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    const startTime = new Date(today);
-    startTime.setHours(9, 0, 0, 0);
-    
-    const endTime = new Date(today);
-    endTime.setHours(23, 59, 59, 999);
+
+    const startTime = contest.start_time ? new Date(contest.start_time) : now;
+    const endTime = contest.end_time ? new Date(contest.end_time) : new Date(startTime);
+    if (!contest.end_time) {
+      endTime.setHours(23, 59, 59, 999);
+    }
     
     // Determine status
     let status = 'upcoming';
