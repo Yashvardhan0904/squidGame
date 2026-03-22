@@ -541,6 +541,33 @@ export async function POST(request) {
     try {
       account = await findOrCreateGoogleAccount(googleUser);
     } catch (dbError) {
+      // Final fallback: if link/create path fails, attempt to recover an existing account.
+      try {
+        const recoveredByGoogleId = await prisma.account.findUnique({
+          where: { google_id: googleUser.sub }
+        });
+
+        if (recoveredByGoogleId) {
+          account = recoveredByGoogleId;
+        } else {
+          const recoveredByEmail = await findAccountByEmail(email);
+          if (recoveredByEmail) {
+            account = recoveredByEmail;
+          }
+        }
+      } catch (recoveryError) {
+        logError('Fallback account recovery failed', recoveryError, {
+          email: email.toLowerCase()
+        });
+      }
+
+      if (account) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event: 'Recovered account via fallback',
+          accountId: account.id
+        }));
+      } else {
       const correlationId = logError('Account management failed', dbError, {
         email: email.toLowerCase()
       });
@@ -548,6 +575,7 @@ export async function POST(request) {
         error: 'Unable to process authentication. Please try again.',
         correlationId
       }, { status: 500 });
+      }
     }
 
     // Generate JWT token using refactored function
