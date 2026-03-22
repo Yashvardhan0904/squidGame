@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../../../lib/prisma';
+import { validateEnvironmentConfig } from '../../../../lib/config';
 
 export async function POST(request) {
   try {
+    const config = validateEnvironmentConfig();
+    if (!config.isValid) {
+      console.error('[Auth][Register] Environment validation failed:', config.error);
+      return NextResponse.json({ error: 'Server authentication is misconfigured' }, { status: 500 });
+    }
+
     const { name, email, password } = await request.json();
 
     if (!name || !email || !password) {

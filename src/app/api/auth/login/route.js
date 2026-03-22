@@ -2,9 +2,16 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import prisma from '../../../../lib/prisma';
+import { validateEnvironmentConfig } from '../../../../lib/config';
 
 export async function POST(request) {
   try {
+    const config = validateEnvironmentConfig();
+    if (!config.isValid) {
+      console.error('[Auth][Login] Environment validation failed:', config.error);
+      return NextResponse.json({ error: 'Server authentication is misconfigured' }, { status: 500 });
+    }
+
     const { email, password } = await request.json();
 
     if (!email || !password) {
@@ -36,7 +43,7 @@ export async function POST(request) {
 
     response.cookies.set('auth_token', token, {
       httpOnly: true,
-      secure: true, // Always use secure in production (Railway uses HTTPS)
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
