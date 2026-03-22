@@ -157,7 +157,16 @@ export default function SquidGameArena() {
 
       let scoreMsg = '';
       if (isHR && parsedScores.length > 0) {
-        const dayNumber = (stats.daysCompleted || 0) + 1;
+        const dayInput = prompt('Enter day number for this HackerRank CSV (1-25):');
+        if (dayInput === null) {
+          throw new Error('Upload cancelled. Day number is required for HackerRank CSV.');
+        }
+
+        const dayNumber = parseInt(dayInput, 10);
+        if (isNaN(dayNumber) || dayNumber < 1 || dayNumber > 25) {
+          throw new Error('Invalid day number. Please enter a value between 1 and 25.');
+        }
+
         const scoreRes = await fetch('/api/db/scores/submit', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ day_number: dayNumber, scores: parsedScores }),
