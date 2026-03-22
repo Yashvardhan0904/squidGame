@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import { Prisma } from '@prisma/client';
 import prisma from '../../../../lib/prisma';
 import { validateEnvironmentConfig } from '../../../../lib/config';
 
@@ -127,15 +128,36 @@ async function linkGoogleToAccount(accountId, googleId, avatarUrl) {
     }
     
     // Update google_id and avatar_url
-    const updatedAccount = await prisma.account.update({
-      where: { id: accountId },
-      data: { 
-        google_id: googleId, 
-        avatar_url: avatarUrl || existingAccount.avatar_url,
-        // Only change provider to GOOGLE if it was EMAIL
-        provider: existingAccount.provider === 'EMAIL' ? 'GOOGLE' : existingAccount.provider
-      },
-    });
+    let updatedAccount;
+    try {
+      updatedAccount = await prisma.account.update({
+        where: { id: accountId },
+        data: {
+          google_id: googleId,
+          avatar_url: avatarUrl || existingAccount.avatar_url,
+          // Only change provider to GOOGLE if it was EMAIL
+          provider: existingAccount.provider === 'EMAIL' ? 'GOOGLE' : existingAccount.provider
+        },
+      });
+    } catch (updateError) {
+      // If google_id is already linked elsewhere, authenticate that linked account.
+      if (updateError instanceof Prisma.PrismaClientKnownRequestError && updateError.code === 'P2002') {
+        const linkedByGoogleId = await prisma.account.findUnique({
+          where: { google_id: googleId }
+        });
+
+        if (linkedByGoogleId) {
+          console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            event: 'Google ID already linked; using linked account',
+            accountId: linkedByGoogleId.id
+          }));
+          return linkedByGoogleId;
+        }
+      }
+
+      throw updateError;
+    }
     
     console.log(JSON.stringify({
       timestamp: new Date().toISOString(),
