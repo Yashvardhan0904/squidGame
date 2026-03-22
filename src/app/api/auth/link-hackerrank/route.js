@@ -40,33 +40,47 @@ export async function POST(request) {
             );
         }
 
-        // Save HackerRank link on account.
-        const account = await prisma.account.update({
-            where: { id: decoded.accountId },
-            data: {
-                hackerrank_id: normalizedHackerrankId,
+        const conflictingEnrollmentOwner = await prisma.user.findFirst({
+            where: {
+                enroll_no: normalizedEnrollment,
+                NOT: { hackerrank_id: normalizedHackerrankId },
             },
+            select: { id: true },
         });
 
-        // Best-effort participant sync: never block profile save if contest data is missing or conflicts.
-        try {
-            const competitionUser = await prisma.user.findUnique({
-                where: { hackerrank_id: normalizedHackerrankId },
-                select: { id: true },
+        if (conflictingEnrollmentOwner) {
+            return NextResponse.json(
+                { error: 'This enrollment number is already assigned to another user.' },
+                { status: 409 }
+            );
+        }
+
+        // Persist account + user profile atomically.
+        const account = await prisma.$transaction(async (tx) => {
+            const updatedAccount = await tx.account.update({
+                where: { id: decoded.accountId },
+                data: {
+                    hackerrank_id: normalizedHackerrankId,
+                },
             });
 
-            if (competitionUser) {
-                await prisma.user.update({
-                    where: { id: competitionUser.id },
-                    data: {
-                        enroll_no: normalizedEnrollment,
-                        email: account.email,
-                    },
-                });
-            }
-        } catch (syncError) {
-            console.warn('Profile sync warning (non-blocking):', syncError?.message || syncError);
-        }
+            await tx.user.upsert({
+                where: { hackerrank_id: normalizedHackerrankId },
+                update: {
+                    enroll_no: normalizedEnrollment,
+                    email: updatedAccount.email,
+                    name: updatedAccount.name,
+                },
+                create: {
+                    name: updatedAccount.name,
+                    hackerrank_id: normalizedHackerrankId,
+                    enroll_no: normalizedEnrollment,
+                    email: updatedAccount.email,
+                },
+            });
+
+            return updatedAccount;
+        });
 
         // Re-issue JWT with updated profile details.
         const newToken = jwt.sign(
