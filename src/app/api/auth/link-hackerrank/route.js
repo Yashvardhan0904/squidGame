@@ -26,18 +26,6 @@ export async function POST(request) {
         const normalizedEnrollment = String(enroll_no).trim().toUpperCase();
         const normalizedHackerrankId = String(hackerrank_id).trim().toLowerCase();
 
-        const competitionUser = await prisma.user.findUnique({
-            where: { hackerrank_id: normalizedHackerrankId },
-            select: { id: true, enroll_no: true },
-        });
-
-        if (!competitionUser) {
-            return NextResponse.json(
-                { error: 'This HackerRank ID is not registered in the competition.' },
-                { status: 404 }
-            );
-        }
-
         const existingHrClaim = await prisma.account.findFirst({
             where: {
                 hackerrank_id: normalizedHackerrankId,
@@ -52,24 +40,6 @@ export async function POST(request) {
             );
         }
 
-        const conflictingEnrollmentUser = await prisma.user.findFirst({
-            where: {
-                enroll_no: {
-                    equals: normalizedEnrollment,
-                    mode: 'insensitive',
-                },
-                NOT: { id: competitionUser.id },
-            },
-            select: { id: true },
-        });
-
-        if (conflictingEnrollmentUser) {
-            return NextResponse.json(
-                { error: 'This enrollment number is already assigned to another participant.' },
-                { status: 409 }
-            );
-        }
-
         // Save HackerRank link on account.
         const account = await prisma.account.update({
             where: { id: decoded.accountId },
@@ -78,14 +48,21 @@ export async function POST(request) {
             },
         });
 
-        // Save enrollment against participant profile.
-        await prisma.user.update({
-            where: { id: competitionUser.id },
-            data: {
-                enroll_no: normalizedEnrollment,
-                email: account.email,
-            },
+        // Best-effort participant sync: do not block profile save if user is not in contest table.
+        const competitionUser = await prisma.user.findUnique({
+            where: { hackerrank_id: normalizedHackerrankId },
+            select: { id: true },
         });
+
+        if (competitionUser) {
+            await prisma.user.update({
+                where: { id: competitionUser.id },
+                data: {
+                    enroll_no: normalizedEnrollment,
+                    email: account.email,
+                },
+            });
+        }
 
         // Re-issue JWT with updated profile details.
         const newToken = jwt.sign(
