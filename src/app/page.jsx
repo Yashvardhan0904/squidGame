@@ -163,7 +163,8 @@ export default function SquidGameArena() {
           body: JSON.stringify({ day_number: dayNumber, scores: parsedScores }),
         });
         const scoreResult = await scoreRes.json();
-        if (scoreRes.ok) scoreMsg = ` Day ${dayNumber}: ${scoreResult.processed} processed, ${scoreResult.new_eliminations} eliminated.`;
+        if (!scoreRes.ok) throw new Error(scoreResult.error || 'Failed to save scraped rows');
+        scoreMsg = ` Day ${dayNumber}: ${scoreResult.scraped} scraped rows saved. Run Process Day (Strikes).`;
       }
 
       alert(`${uploadResult.message}${scoreMsg}`);

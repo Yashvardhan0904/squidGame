@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 
-// POST /api/db/scores/submit - Submit daily scores for a contest day
-// Body: { day_number, contest_slug?, scores: [{ hackerrank_id, score }] }
+// POST /api/db/scores/submit - Ingest scraped leaderboard rows for a day
+// Body: { day_number, contest_slug?, scores: [{ hackerrank_id, score, rank? }] }
 export async function POST(request) {
   try {
     const { day_number, contest_slug, scores } = await request.json();
@@ -14,75 +14,77 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Scores array required' }, { status: 400 });
     }
 
-    // Upsert the contest
-    await prisma.contest.upsert({
+    const contest = await prisma.contest.upsert({
       where: { day_number },
-      update: { is_processed: true, contest_slug: contest_slug || undefined },
-      create: { day_number, contest_slug: contest_slug || null, is_processed: true },
+      update: {
+        contest_slug: contest_slug || undefined,
+      },
+      create: {
+        day_number,
+        contest_slug: contest_slug || null,
+      },
     });
 
-    let processed = 0;
+    const batchId = `csv-${day_number}-${Date.now()}`;
+    let scraped = 0;
     let skipped = 0;
-    let newEliminations = 0;
 
     for (const entry of scores) {
-      const { hackerrank_id, score } = entry;
-      if (!hackerrank_id) { skipped++; continue; }
+      const { hackerrank_id, score, rank } = entry;
+      const normalizedId = (hackerrank_id || '').toString().trim();
 
-      // Find the user
-      const user = await prisma.user.findUnique({
-        where: { hackerrank_id },
-      });
+      if (!normalizedId) {
+        skipped++;
+        continue;
+      }
 
-      if (!user) { skipped++; continue; }
-      if (user.is_eliminated) { skipped++; continue; }
-
-      // Upsert daily score (prevents duplicate per user per day)
-      await prisma.dailyScore.upsert({
-        where: { unique_user_day: { user_id: user.id, day_number } },
-        update: { score: score || 0, contest_slug },
-        create: { user_id: user.id, day_number, score: score || 0, contest_slug },
-      });
-
-      // Recalculate total_score and strike_count from all daily_scores
-      const allScores = await prisma.dailyScore.findMany({
-        where: { user_id: user.id },
-        orderBy: { day_number: 'asc' },
-      });
-
-      const totalScore = allScores.reduce((sum, ds) => sum + ds.score, 0);
-      const strikeCount = allScores.filter(ds => ds.score === 0).length;
-      const isEliminated = strikeCount >= 3;
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: {
-          total_score: totalScore,
-          strike_count: strikeCount,
-          is_eliminated: isEliminated,
-          eliminated_on: isEliminated && !user.is_eliminated ? new Date() : user.eliminated_on,
+      await prisma.scrapedResult.upsert({
+        where: {
+          unique_scraped_day_user: {
+            day_number,
+            hackerrank_id: normalizedId,
+          },
+        },
+        update: {
+          score: Number(score) || 0,
+          rank: Number.isFinite(Number(rank)) ? Number(rank) : null,
+          scraped_at: new Date(),
+          scrape_batch_id: batchId,
+          contest_id: contest.id,
+        },
+        create: {
+          contest_id: contest.id,
+          day_number,
+          hackerrank_id: normalizedId,
+          score: Number(score) || 0,
+          rank: Number.isFinite(Number(rank)) ? Number(rank) : null,
+          scrape_batch_id: batchId,
         },
       });
 
-      // Log elimination
-      if (isEliminated && !user.is_eliminated) {
-        await prisma.eliminationLog.upsert({
-          where: { user_id: user.id },
-          update: { final_score: totalScore, total_strikes: strikeCount, last_day_played: day_number },
-          create: { user_id: user.id, final_score: totalScore, total_strikes: strikeCount, last_day_played: day_number },
-        });
-        newEliminations++;
-      }
-
-      processed++;
+      scraped++;
     }
+
+    await prisma.contest.update({
+      where: { id: contest.id },
+      data: {
+        is_scraped: true,
+        scraped_at: new Date(),
+        scrape_attempts: { increment: 1 },
+        last_scrape_error: null,
+        // Keep processing explicit so strike flow can run from /api/admin/process.
+        is_processed: false,
+        processed_at: null,
+      },
+    });
 
     return NextResponse.json({
       success: true,
       day_number,
-      processed,
+      scraped,
       skipped,
-      new_eliminations: newEliminations,
+      batch_id: batchId,
+      message: 'Scraped rows saved. Now run Process Day (Strikes).',
     });
   } catch (error) {
     console.error('POST /api/db/scores/submit error:', error);
