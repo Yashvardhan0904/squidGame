@@ -47,7 +47,7 @@ export async function reprocessDay(dayNumber, adminUserId) {
 
     // Call processStrikes (which has built-in idempotency)
     // Existing DailyScore and StrikeLog records will be skipped
-    const result = await processStrikes(dayNumber);
+    const result = await processStrikes(dayNumber, { bypassLock: true });
 
     // Create AdminAuditLog entry for reprocess action
     await prisma.adminAuditLog.create({

@@ -41,7 +41,7 @@ export async function triggerStrikeProcessing(dayNumber, adminUserId) {
 
   try {
     // Call existing processStrikes function
-    const result = await processStrikes(dayNumber);
+    const result = await processStrikes(dayNumber, { bypassLock: true });
 
     // Generate backup after successful processing
     let backupResult = null;

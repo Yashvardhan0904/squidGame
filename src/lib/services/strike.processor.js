@@ -14,18 +14,24 @@ const LOCK_TIMEOUT_MINUTES = 30;
 /**
  * Main entry point - process strikes for a given day
  */
-export async function processStrikes(dayNumber) {
+export async function processStrikes(dayNumber, options = {}) {
   const startTime = Date.now();
   const jobName = 'nightly_strike_processor';
+  const bypassLock = options?.bypassLock === true;
+  let lockAcquired = false;
 
   try {
     // ═══════════════════════════════════════════════════════════════════
     // STEP 1: Acquire distributed lock
     // ═══════════════════════════════════════════════════════════════════
-    const lockAcquired = await acquireLock(jobName);
-    if (!lockAcquired) {
-      console.log('[StrikeProcessor] Lock not acquired, another instance is processing');
-      return { skipped: true, reason: 'lock_not_acquired' };
+    if (!bypassLock) {
+      lockAcquired = await acquireLock(jobName);
+      if (!lockAcquired) {
+        console.log('[StrikeProcessor] Lock not acquired, another instance is processing');
+        return { skipped: true, reason: 'lock_not_acquired' };
+      }
+    } else {
+      console.log(`[StrikeProcessor] Day ${dayNumber} - Admin bypass lock enabled`);
     }
 
     console.log(`[StrikeProcessor] Day ${dayNumber} - Processing started (${INSTANCE_ID})`);
@@ -45,7 +51,9 @@ export async function processStrikes(dayNumber) {
     }
     if (contest.is_processed) {
       console.log(`[StrikeProcessor] Day ${dayNumber} already processed, skipping`);
-      await releaseLock(jobName, 'completed', Date.now() - startTime);
+      if (!bypassLock && lockAcquired) {
+        await releaseLock(jobName, 'completed', Date.now() - startTime);
+      }
       return { skipped: true, reason: 'already_processed' };
     }
 
@@ -104,14 +112,18 @@ export async function processStrikes(dayNumber) {
     });
 
     const duration = Date.now() - startTime;
-    await releaseLock(jobName, 'completed', duration);
+    if (!bypassLock && lockAcquired) {
+      await releaseLock(jobName, 'completed', duration);
+    }
 
     console.log(`[StrikeProcessor] Day ${dayNumber} - Complete`, results);
     return results;
 
   } catch (error) {
     const duration = Date.now() - startTime;
-    await releaseLock(jobName, 'failed', duration, error.message);
+    if (!bypassLock && lockAcquired) {
+      await releaseLock(jobName, 'failed', duration, error.message);
+    }
     console.error('[StrikeProcessor] Failed:', error);
     throw error;
   }
