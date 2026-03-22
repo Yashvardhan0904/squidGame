@@ -79,6 +79,30 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
     if (e.target.files[0]) onCsvUpload(e);
   };
 
+  const downloadScrapedCsv = async (dayNumber) => {
+    const res = await fetch(`/api/admin/scrape/${dayNumber}/csv`);
+    if (!res.ok) {
+      let errorMessage = 'Unable to download CSV';
+      try {
+        const errorBody = await res.json();
+        errorMessage = errorBody.error || errorMessage;
+      } catch (_error) {
+        // Ignore JSON parsing failure and keep fallback message.
+      }
+      throw new Error(errorMessage);
+    }
+
+    const blob = await res.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = `scraped-day-${dayNumber}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(downloadUrl);
+  };
+
   const handleScrape = async (dayNumber) => {
     if (!confirm(`Scrape leaderboard for Day ${dayNumber}?`)) return;
     setLoading(true);
@@ -91,7 +115,8 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
       const data = await res.json();
       if (res.ok) {
         const participantCount = data.participantCount ?? data.count ?? 0;
-        alert(`Scraped ${participantCount} participants for Day ${dayNumber}`);
+        await downloadScrapedCsv(dayNumber);
+        alert(`Scraped ${participantCount} participants for Day ${dayNumber}. CSV downloaded.`);
         fetchContests();
       } else {
         alert(`Scrape failed: ${data.error}`);

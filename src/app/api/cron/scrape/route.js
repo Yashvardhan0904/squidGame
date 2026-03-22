@@ -57,13 +57,7 @@ export async function POST(request) {
       });
     }
 
-    if (!contest.contest_slug) {
-      return NextResponse.json({
-        error: `Contest day ${dayNumber} is missing contest_slug`
-      }, { status: 400 });
-    }
-
-    const result = await scrapeLeaderboard(contest.contest_slug, dayNumber);
+    const result = await scrapeLeaderboard(contest.contest_slug || null, dayNumber);
     
     return NextResponse.json({
       success: true,

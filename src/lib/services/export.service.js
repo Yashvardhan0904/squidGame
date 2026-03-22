@@ -137,10 +137,43 @@ export async function exportAuditLogs(options = {}) {
   return csv;
 }
 
+/**
+ * Export scraped leaderboard rows for a specific day to CSV
+ */
+export async function exportScrapedResultsForDay(dayNumber) {
+  const rows = await prisma.scrapedResult.findMany({
+    where: { day_number: dayNumber },
+    orderBy: [
+      { rank: 'asc' },
+      { score: 'desc' },
+      { hackerrank_id: 'asc' }
+    ]
+  });
+
+  const records = rows.map((row) => ({
+    day_number: row.day_number,
+    hackerrank_id: row.hackerrank_id,
+    score: row.score,
+    rank: row.rank ?? '',
+    submission_time: row.submission_time ? row.submission_time.toISOString() : '',
+    scraped_at: row.scraped_at.toISOString(),
+    scrape_batch_id: row.scrape_batch_id
+  }));
+
+  const csv = stringify(records, {
+    header: true,
+    quoted: true,
+    quoted_empty: true
+  });
+
+  return csv;
+}
+
 const exportService = {
   exportAllUsers,
   exportEliminatedUsers,
-  exportAuditLogs
+  exportAuditLogs,
+  exportScrapedResultsForDay
 };
 
 export default exportService;

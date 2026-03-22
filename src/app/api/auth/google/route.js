@@ -292,7 +292,7 @@ function generateAuthToken(account) {
 function getCookieConfig() {
   return {
     httpOnly: true,
-    secure: true, // Always use secure (Railway uses HTTPS)
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7, // 7 days in seconds
     path: '/'

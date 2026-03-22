@@ -42,7 +42,7 @@ export async function POST(request) {
     // Return validation errors with 400 status
     if (error.message.includes('must be between') ||
         error.message.includes('not found') ||
-        error.message.includes('no contest_slug')) {
+        error.message.includes('Unable to resolve contest slug')) {
       return NextResponse.json({
         error: error.message
       }, { status: 400 });

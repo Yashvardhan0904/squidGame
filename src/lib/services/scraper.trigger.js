@@ -27,20 +27,18 @@ export async function triggerScraping(dayNumber) {
     throw new Error(`Contest day ${dayNumber} not found`);
   }
 
-  // Verify contest has contest_slug
-  if (!contest.contest_slug || contest.contest_slug.trim() === '') {
-    throw new Error(`Contest day ${dayNumber} has no contest_slug configured`);
-  }
-
   try {
     // Call existing scrapeLeaderboard function
-    const result = await scrapeLeaderboard(contest.contest_slug, dayNumber);
+    const result = await scrapeLeaderboard(contest.contest_slug || null, dayNumber);
 
     return {
       success: true,
       dayNumber,
       participantCount: result.count,
       batchId: result.batchId,
+      contestSlug: result.contestSlug,
+      contestUrl: result.contestUrl,
+      resolvedFrom: result.resolvedFrom,
       scrapedAt: new Date()
     };
 

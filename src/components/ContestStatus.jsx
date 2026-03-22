@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, Calendar, ExternalLink, AlertCircle, CheckCircle, Loader } from 'lucide-react';
 
@@ -9,23 +9,37 @@ export default function ContestStatus() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [status, setStatus] = useState('loading'); // loading, live, upcoming, ended, no-contest
 
-  useEffect(() => {
-    fetchContestInfo();
-    const interval = setInterval(fetchContestInfo, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
+  const calculateTimeLeft = useCallback((from, to) => {
+    const diff = to - from;
+    if (diff <= 0) return null;
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    return { hours, minutes, seconds };
   }, []);
 
-  useEffect(() => {
-    if (!contestInfo) return;
-    
-    const timer = setInterval(() => {
-      updateTimeLeft();
-    }, 1000);
-    
-    return () => clearInterval(timer);
-  }, [contestInfo]);
+  const updateTimeLeft = useCallback((data) => {
+    if (!data) return;
 
-  const fetchContestInfo = async () => {
+    const now = new Date();
+    const startTime = new Date(data.startTime);
+    const endTime = new Date(data.endTime);
+
+    if (now < startTime) {
+      setStatus('upcoming');
+      setTimeLeft(calculateTimeLeft(now, startTime));
+    } else if (now >= startTime && now <= endTime) {
+      setStatus('live');
+      setTimeLeft(calculateTimeLeft(now, endTime));
+    } else {
+      setStatus('ended');
+      setTimeLeft(null);
+    }
+  }, [calculateTimeLeft]);
+
+  const fetchContestInfo = useCallback(async () => {
     try {
       const res = await fetch('/api/contest/current');
       const data = await res.json();
@@ -43,37 +57,26 @@ export default function ContestStatus() {
       console.error('Failed to fetch contest info:', error);
       setStatus('no-contest');
     }
-  };
+  }, [updateTimeLeft]);
 
-  const updateTimeLeft = (data = contestInfo) => {
-    if (!data) return;
+  useEffect(() => {
+    const initialFetchTimer = setTimeout(fetchContestInfo, 0);
+    const interval = setInterval(fetchContestInfo, 30000); // Refresh every 30 seconds
+    return () => {
+      clearTimeout(initialFetchTimer);
+      clearInterval(interval);
+    };
+  }, [fetchContestInfo]);
 
-    const now = new Date();
-    const startTime = new Date(data.startTime);
-    const endTime = new Date(data.endTime);
-
-    if (now < startTime) {
-      setStatus('upcoming');
-      setTimeLeft(calculateTimeLeft(now, startTime));
-    } else if (now >= startTime && now <= endTime) {
-      setStatus('live');
-      setTimeLeft(calculateTimeLeft(now, endTime));
-    } else {
-      setStatus('ended');
-      setTimeLeft(null);
-    }
-  };
-
-  const calculateTimeLeft = (from, to) => {
-    const diff = to - from;
-    if (diff <= 0) return null;
-
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-    return { hours, minutes, seconds };
-  };
+  useEffect(() => {
+    if (!contestInfo) return;
+    
+    const timer = setInterval(() => {
+      updateTimeLeft(contestInfo);
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [contestInfo, updateTimeLeft]);
 
   if (status === 'loading') {
     return (
