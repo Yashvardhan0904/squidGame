@@ -64,10 +64,11 @@ export async function reprocessDay(dayNumber, adminUserId) {
     return {
       success: true,
       dayNumber,
-      solved: result.solved,
-      strikes: result.strikes,
-      eliminations: result.eliminations,
-      skipped: result.skipped,
+      solved: result.solved ?? 0,
+      strikes: result.strikes ?? 0,
+      eliminations: result.eliminations ?? 0,
+      skipped: result.skipped ?? false,
+      reason: result.reason || null,
       errors: result.errors
     };
 

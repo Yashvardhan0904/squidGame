@@ -114,7 +114,11 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Processed Day ${dayNumber}\nSolved: ${data.solved}\nStrikes: ${data.strikes}\nEliminations: ${data.eliminations}`);
+        const solved = data.solved ?? 0;
+        const strikes = data.strikes ?? 0;
+        const eliminations = data.eliminations ?? 0;
+        const status = data.skipped ? `Skipped (${data.reason || 'no_reason'})` : 'Completed';
+        alert(`Processed Day ${dayNumber}\nStatus: ${status}\nSolved: ${solved}\nStrikes: ${strikes}\nEliminations: ${eliminations}`);
         fetchStats();
         fetchContests();
       } else {
@@ -138,7 +142,12 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Reprocessed Day ${dayNumber}\nSolved: ${data.solved}\nStrikes: ${data.strikes}\nEliminations: ${data.eliminations}\nSkipped: ${data.skipped}`);
+        const solved = data.solved ?? 0;
+        const strikes = data.strikes ?? 0;
+        const eliminations = data.eliminations ?? 0;
+        const skipped = data.skipped ? 'Yes' : 'No';
+        const reasonLine = data.reason ? `\nReason: ${data.reason}` : '';
+        alert(`Reprocessed Day ${dayNumber}\nSolved: ${solved}\nStrikes: ${strikes}\nEliminations: ${eliminations}\nSkipped: ${skipped}${reasonLine}`);
         fetchStats();
         fetchContests();
       } else {
