@@ -72,7 +72,6 @@ export async function POST(request) {
         role: account.role,
         avatar_url: null,
         hackerrank_id: null,
-        enroll_no: null,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }

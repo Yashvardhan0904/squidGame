@@ -24,12 +24,20 @@ export async function GET() {
         role: true,
         avatar_url: true,
         hackerrank_id: true,
-        enroll_no: true,
       },
     });
 
     if (!account) {
       return NextResponse.json({ authenticated: false }, { status: 401 });
+    }
+
+    let enrollNo = null;
+    if (account.hackerrank_id) {
+      const competitionUser = await prisma.user.findUnique({
+        where: { hackerrank_id: account.hackerrank_id },
+        select: { enroll_no: true },
+      });
+      enrollNo = competitionUser?.enroll_no || null;
     }
 
     return NextResponse.json({
@@ -41,7 +49,7 @@ export async function GET() {
         role: account.role,
         avatar_url: account.avatar_url,
         hackerrank_id: account.hackerrank_id,
-        enroll_no: account.enroll_no,
+        enroll_no: enrollNo,
       },
     });
   } catch (error) {

@@ -66,11 +66,19 @@ export async function POST(request) {
         role: account.role,
         avatar_url: account.avatar_url,
         hackerrank_id: account.hackerrank_id,
-        enroll_no: account.enroll_no,
       },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+
+    let enrollNo = null;
+    if (account.hackerrank_id) {
+      const competitionUser = await prisma.user.findUnique({
+        where: { hackerrank_id: account.hackerrank_id },
+        select: { enroll_no: true },
+      });
+      enrollNo = competitionUser?.enroll_no || null;
+    }
 
     const response = NextResponse.json({
       message: 'Login successful',
@@ -81,7 +89,7 @@ export async function POST(request) {
         role: account.role,
         avatar_url: account.avatar_url,
         hackerrank_id: account.hackerrank_id,
-        enroll_no: account.enroll_no,
+        enroll_no: enrollNo,
       },
     });
 

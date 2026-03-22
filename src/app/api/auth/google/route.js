@@ -270,8 +270,7 @@ function generateAuthToken(account) {
     name: account.name,
     role: account.role,
     avatar_url: account.avatar_url || null,
-    hackerrank_id: account.hackerrank_id || null,
-    enroll_no: account.enroll_no || null
+    hackerrank_id: account.hackerrank_id || null
   };
 
   const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' });
