@@ -176,9 +176,9 @@ async function linkGoogleToAccount(accountId, googleId, avatarUrl) {
  * Creates a new account with Google authentication
  */
 async function createGoogleAccount(email, name, googleId, avatarUrl) {
+  const normalizedEmail = normalizeEmail(email);
+
   try {
-    const normalizedEmail = normalizeEmail(email);
-    
     // Derive name from email if not provided
     const accountName = name || normalizedEmail.split('@')[0];
     
@@ -202,8 +202,31 @@ async function createGoogleAccount(email, name, googleId, avatarUrl) {
     
     return account;
   } catch (error) {
+    // Recover from concurrent/duplicate account creation races.
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const [byEmail, byGoogleId] = await Promise.all([
+        prisma.account.findUnique({ where: { email: normalizedEmail } }),
+        prisma.account.findUnique({ where: { google_id: googleId } }),
+      ]);
+
+      // Prefer the Google-linked record if available.
+      if (byGoogleId) {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          event: 'Recovered account after create conflict (google_id)',
+          accountId: byGoogleId.id
+        }));
+        return byGoogleId;
+      }
+
+      if (byEmail) {
+        // Link to existing email account if it is not yet linked.
+        return await linkGoogleToAccount(byEmail.id, googleId, avatarUrl);
+      }
+    }
+
     logError('Account creation failed', error, { 
-      email: normalizeEmail(email),
+      email: normalizedEmail,
       googleId: '[REDACTED]'
     });
     throw error;
