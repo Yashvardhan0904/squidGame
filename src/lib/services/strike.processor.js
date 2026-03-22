@@ -58,13 +58,18 @@ export async function processStrikes(dayNumber, options = {}) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 3: Load scraped results into a Map for O(1) lookup
+    // STEP 3: Reconcile legacy elimination inconsistencies
+    // ═══════════════════════════════════════════════════════════════════
+    const reconciledEliminations = await reconcileEliminationState(dayNumber);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STEP 4: Load scraped results into a Map for O(1) lookup
     // ═══════════════════════════════════════════════════════════════════
     const solversMap = await getSolversForDay(dayNumber);
     console.log(`[StrikeProcessor] Day ${dayNumber} - Loaded ${solversMap.size} solvers`);
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 4: Get all active users who should be processed
+    // STEP 5: Get all active users who should be processed
     // ═══════════════════════════════════════════════════════════════════
     const users = await prisma.user.findMany({
       where: {
@@ -81,12 +86,13 @@ export async function processStrikes(dayNumber, options = {}) {
     console.log(`[StrikeProcessor] Day ${dayNumber} - Processing ${users.length} eligible users`);
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 5: Process each user
+    // STEP 6: Process each user
     // ═══════════════════════════════════════════════════════════════════
     const results = {
       solved: 0,
       strikes: 0,
       eliminations: 0,
+      reconciledEliminations,
       skipped: 0,
       errors: []
     };
@@ -101,7 +107,7 @@ export async function processStrikes(dayNumber, options = {}) {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STEP 6: Mark contest as processed
+    // STEP 7: Mark contest as processed
     // ═══════════════════════════════════════════════════════════════════
     await prisma.contest.update({
       where: { id: contest.id },
@@ -224,9 +230,9 @@ async function processUser(user, dayNumber, contestId, solversMap, results) {
       results.strikes++;
 
       // ─────────────────────────────────────────────────────────────────
-      // CHECK FOR ELIMINATION (3 consecutive misses = eliminated)
+      // CHECK FOR ELIMINATION (3 total strikes OR 3 consecutive misses)
       // ─────────────────────────────────────────────────────────────────
-      if (newConsecutiveMiss >= 3) {
+      if (newStrikeCount >= 3 || newConsecutiveMiss >= 3) {
         await eliminateUser(tx, user, dayNumber, newStrikeCount);
         results.eliminations++;
         // Send elimination email (not strike email)
@@ -241,6 +247,66 @@ async function processUser(user, dayNumber, contestId, solversMap, results) {
       }
     }
   });
+}
+
+/**
+ * Reconcile users that should have already been eliminated but remain active.
+ * This repairs legacy inconsistencies where strike_count crossed threshold
+ * without elimination state being updated.
+ */
+async function reconcileEliminationState(dayNumber) {
+  const thresholdUsers = await prisma.user.findMany({
+    where: {
+      is_eliminated: false,
+      strike_count: { gte: 3 }
+    },
+    select: {
+      id: true,
+      email: true,
+      total_score: true,
+      strike_count: true,
+      status: true,
+      eliminated_on: true
+    }
+  });
+
+  if (thresholdUsers.length === 0) {
+    return 0;
+  }
+
+  let reconciled = 0;
+  for (const user of thresholdUsers) {
+    await prisma.$transaction(async (tx) => {
+      const existing = await tx.eliminationLog.findUnique({
+        where: { user_id: user.id }
+      });
+
+      if (!existing) {
+        await tx.eliminationLog.create({
+          data: {
+            user_id: user.id,
+            final_score: user.total_score,
+            total_strikes: user.strike_count,
+            last_day_played: Math.max(dayNumber - 1, 0)
+          }
+        });
+      }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          status: 'eliminated',
+          is_eliminated: true,
+          eliminated_on: user.eliminated_on || new Date()
+        }
+      });
+    });
+
+    reconciled++;
+  }
+
+  console.log(`[StrikeProcessor] Reconciled ${reconciled} users with strike_count >= 3`);
+  return reconciled;
 }
 
 /**
