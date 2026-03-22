@@ -1,8 +1,32 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Prisma } from '@prisma/client';
 import prisma from '../../../../lib/prisma';
 import { validateEnvironmentConfig } from '../../../../lib/config';
+
+function generateCorrelationId() {
+  return `auth-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function mapRegisterError(error) {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === 'P2021') {
+      return { status: 500, error: 'Auth database schema is not ready (accounts table missing)' };
+    }
+    return { status: 500, error: 'Auth database request failed' };
+  }
+
+  if (error instanceof Prisma.PrismaClientInitializationError) {
+    return { status: 503, error: 'Auth database is unavailable' };
+  }
+
+  if (typeof error?.message === 'string' && error.message.includes('secretOrPrivateKey')) {
+    return { status: 500, error: 'Server authentication is misconfigured (JWT secret)' };
+  }
+
+  return { status: 500, error: 'Internal server error' };
+}
 
 export async function POST(request) {
   try {
@@ -61,7 +85,9 @@ export async function POST(request) {
 
     return response;
   } catch (error) {
-    console.error('Register error:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    const correlationId = generateCorrelationId();
+    const mapped = mapRegisterError(error);
+    console.error(`[Auth][Register][${correlationId}]`, error);
+    return NextResponse.json({ error: mapped.error, correlationId }, { status: mapped.status });
   }
 }
