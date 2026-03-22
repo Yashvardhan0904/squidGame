@@ -96,6 +96,8 @@ export async function triggerStrikeProcessing(dayNumber, adminUserId) {
   }
 }
 
-export default {
+const strikeTriggerService = {
   triggerStrikeProcessing
 };
+
+export default strikeTriggerService;

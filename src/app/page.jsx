@@ -239,6 +239,28 @@ export default function SquidGameArena() {
   };
 
   const handleExport = async () => {
+    setExporting(true);
+    try {
+      const res = await fetch('/api/admin/export');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Export failed');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      a.download = `squidgame-export-${date}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      alert('Export failed: ' + error.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleExportEliminated = async () => {
@@ -263,28 +285,6 @@ export default function SquidGameArena() {
       alert('Export failed: ' + error.message);
     } finally {
       setExportingEliminated(false);
-    }
-    setExporting(true);
-    try {
-      const res = await fetch('/api/admin/export');
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Export failed');
-      }
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const date = new Date().toISOString().split('T')[0];
-      a.download = `squidgame-export-${date}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      alert('Export failed: ' + error.message);
-    } finally {
-      setExporting(false);
     }
   };
 

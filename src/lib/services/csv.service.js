@@ -1,4 +1,4 @@
-const prisma = require('../prisma');
+import prisma from '../prisma';
 
 function toNumber(value) {
   if (typeof value === 'number') return value;
@@ -190,7 +190,6 @@ async function uploadCSV(rows, dayNumber) {
       where: { id: contest.id },
       data: {
         is_scraped: true,
-        scraping_method: 'CSV',
         scraped_at: new Date(),
       },
     });
@@ -235,7 +234,7 @@ async function uploadCSV(rows, dayNumber) {
   };
 }
 
-module.exports = {
+export {
   parseCSV,
   validateCSVRow,
   validateCSVData,

@@ -49,6 +49,8 @@ export async function triggerScraping(dayNumber) {
   }
 }
 
-export default {
+const scraperTriggerService = {
   triggerScraping
 };
+
+export default scraperTriggerService;

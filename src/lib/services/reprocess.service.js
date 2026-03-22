@@ -88,6 +88,8 @@ export async function reprocessDay(dayNumber, adminUserId) {
   }
 }
 
-export default {
+const reprocessService = {
   reprocessDay
 };
+
+export default reprocessService;

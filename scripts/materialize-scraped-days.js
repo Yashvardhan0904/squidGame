@@ -1,5 +1,3 @@
-/* eslint-disable no-console */
-
 /**
  * Materialize scraped leaderboard into day-wise truth tables.
  *

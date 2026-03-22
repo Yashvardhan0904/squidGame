@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, LogOut, Shield, User, Bell, BellOff, ChevronDown, Mail, Link2 } from 'lucide-react';
@@ -137,7 +138,14 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                     }`}
                 >
                   {user.avatar_url ? (
-                    <img src={user.avatar_url} alt="" className="w-5 h-5 rounded-full" />
+                    <Image
+                      src={user.avatar_url}
+                      alt={`${user.name || 'User'} avatar`}
+                      width={20}
+                      height={20}
+                      unoptimized
+                      className="w-5 h-5 rounded-full"
+                    />
                   ) : (
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-squid-pink to-purple-600 flex items-center justify-center">
                       <span className="text-[9px] font-bold text-white">{user.name?.charAt(0)?.toUpperCase()}</span>
@@ -161,7 +169,14 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                       <div className="px-4 py-4 border-b border-squid-border/30">
                         <div className="flex items-center gap-3">
                           {user.avatar_url ? (
-                            <img src={user.avatar_url} alt="" className="w-10 h-10 rounded-full" />
+                            <Image
+                              src={user.avatar_url}
+                              alt={`${user.name || 'User'} avatar`}
+                              width={40}
+                              height={40}
+                              unoptimized
+                              className="w-10 h-10 rounded-full"
+                            />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-squid-pink to-purple-600 flex items-center justify-center">
                               <span className="text-sm font-bold text-white">{user.name?.charAt(0)?.toUpperCase()}</span>
@@ -288,7 +303,14 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                   <>
                     <div className="flex items-center gap-3 px-4 py-3">
                       {user.avatar_url ? (
-                        <img src={user.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                        <Image
+                          src={user.avatar_url}
+                          alt={`${user.name || 'User'} avatar`}
+                          width={32}
+                          height={32}
+                          unoptimized
+                          className="w-8 h-8 rounded-full"
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-gradient-to-br from-squid-pink to-purple-600 flex items-center justify-center">
                           <span className="text-sm font-bold text-white">{user.name?.charAt(0)?.toUpperCase()}</span>
