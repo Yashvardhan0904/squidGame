@@ -94,7 +94,7 @@ export async function generateDailyBackup(dayNumber) {
           admin_user_id: 0, // System action
           action: 'BACKUP_FAILED',
           target_type: 'Contest',
-          target_id: dayNumber.toString(),
+          target_id: dayNumber,
           old_value: null,
           new_value: { error: error.message },
           reason: `Automatic backup failed for day ${dayNumber}`

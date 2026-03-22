@@ -59,7 +59,7 @@ export async function triggerStrikeProcessing(dayNumber, adminUserId) {
         admin_user_id: adminUserId,
         action: 'MANUAL_PROCESS_DAY',
         target_type: 'Contest',
-        target_id: dayNumber.toString(),
+        target_id: dayNumber,
         new_value: {
           processing: result,
           backup: backupResult
@@ -86,7 +86,7 @@ export async function triggerStrikeProcessing(dayNumber, adminUserId) {
         admin_user_id: adminUserId,
         action: 'MANUAL_PROCESS_DAY_FAILED',
         target_type: 'Contest',
-        target_id: dayNumber.toString(),
+        target_id: dayNumber,
         reason: `Failed to process day ${dayNumber}: ${error.message}`
       }
     });

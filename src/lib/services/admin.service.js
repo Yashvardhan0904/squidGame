@@ -62,7 +62,7 @@ export async function reinstateUser(adminUserId, targetUserId, reason) {
         admin_user_id: adminUserId,
         action: 'REINSTATE_USER',
         target_type: 'User',
-        target_id: targetUserId.toString(),
+        target_id: targetUserId,
         old_value: JSON.stringify({ status: 'eliminated', is_eliminated: true }),
         new_value: JSON.stringify({ status: 'active', is_eliminated: false }),
         notes: reason
@@ -120,7 +120,7 @@ export async function revertStrike(adminUserId, userId, dayNumber, reason) {
         admin_user_id: adminUserId,
         action: 'REVERT_STRIKE',
         target_type: 'StrikeLog',
-        target_id: strike.id.toString(),
+        target_id: strike.id,
         old_value: JSON.stringify({ reverted: false }),
         new_value: JSON.stringify({ reverted: true }),
         notes: reason
@@ -246,7 +246,7 @@ export async function manualProcessDay(adminUserId, dayNumber) {
       admin_user_id: adminUserId,
       action: 'MANUAL_PROCESS_DAY',
       target_type: 'Contest',
-      target_id: dayNumber.toString(),
+      target_id: dayNumber,
       new_value: JSON.stringify(result),
       notes: `Manually triggered processing for day ${dayNumber}`
     }

@@ -55,7 +55,7 @@ export async function reprocessDay(dayNumber, adminUserId) {
         admin_user_id: adminUserId,
         action: 'REPROCESS_DAY',
         target_type: 'Contest',
-        target_id: dayNumber.toString(),
+        target_id: dayNumber,
         new_value: JSON.stringify(result),
         notes: `Reprocessed day ${dayNumber}`
       }
@@ -78,7 +78,7 @@ export async function reprocessDay(dayNumber, adminUserId) {
         admin_user_id: adminUserId,
         action: 'REPROCESS_DAY_FAILED',
         target_type: 'Contest',
-        target_id: dayNumber.toString(),
+        target_id: dayNumber,
         notes: `Failed to reprocess day ${dayNumber}: ${error.message}`
       }
     });
