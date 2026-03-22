@@ -30,9 +30,11 @@ export async function POST(request) {
     
     // Get day number from body or use current
     let dayNumber;
+    let force = false;
     try {
       const body = await request.json();
       dayNumber = body.dayNumber || getCurrentDayNumber();
+      force = Boolean(body.force);
     } catch {
       dayNumber = getCurrentDayNumber();
     }
@@ -47,15 +49,21 @@ export async function POST(request) {
       }, { status: 404 });
     }
     
-    if (contest.is_scraped) {
+    if (contest.is_scraped && !force) {
       return NextResponse.json({
         skipped: true,
         reason: 'already_scraped',
         dayNumber
       });
     }
-    
-    const result = await scrapeLeaderboard(contest.hackerrank_url, dayNumber);
+
+    if (!contest.contest_slug) {
+      return NextResponse.json({
+        error: `Contest day ${dayNumber} is missing contest_slug`
+      }, { status: 400 });
+    }
+
+    const result = await scrapeLeaderboard(contest.contest_slug, dayNumber);
     
     return NextResponse.json({
       success: true,

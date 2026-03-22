@@ -90,7 +90,8 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
       });
       const data = await res.json();
       if (res.ok) {
-        alert(`Scraped ${data.count} participants for Day ${dayNumber}`);
+        const participantCount = data.participantCount ?? data.count ?? 0;
+        alert(`Scraped ${participantCount} participants for Day ${dayNumber}`);
         fetchContests();
       } else {
         alert(`Scrape failed: ${data.error}`);
@@ -124,6 +125,59 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReprocess = async (dayNumber) => {
+    if (!confirm(`Reprocess Day ${dayNumber}? This will retry processing for missing rows only.`)) return;
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/reprocess', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dayNumber })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(`Reprocessed Day ${dayNumber}\nSolved: ${data.solved}\nStrikes: ${data.strikes}\nEliminations: ${data.eliminations}\nSkipped: ${data.skipped}`);
+        fetchStats();
+        fetchContests();
+      } else {
+        alert(`Reprocess failed: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Reprocess failed: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const askDayNumber = () => {
+    const input = prompt('Enter day number (1-25):');
+    if (input === null) return null;
+    const dayNumber = parseInt(input, 10);
+    if (isNaN(dayNumber) || dayNumber < 1 || dayNumber > 25) {
+      alert('Invalid day number. Please enter a value between 1 and 25.');
+      return null;
+    }
+    return dayNumber;
+  };
+
+  const handleQuickScrape = async () => {
+    const dayNumber = askDayNumber();
+    if (!dayNumber) return;
+    await handleScrape(dayNumber);
+  };
+
+  const handleQuickProcess = async () => {
+    const dayNumber = askDayNumber();
+    if (!dayNumber) return;
+    await handleProcess(dayNumber);
+  };
+
+  const handleQuickReprocess = async () => {
+    const dayNumber = askDayNumber();
+    if (!dayNumber) return;
+    await handleReprocess(dayNumber);
   };
 
   const handleStartContest = async (dayNumber) => {
@@ -284,6 +338,7 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
               contests={contests} 
               onScrape={handleScrape}
               onProcess={handleProcess}
+              onReprocess={handleReprocess}
               onStartContest={handleStartContest}
               onBackup={handleBackup}
               loading={loading}
@@ -300,6 +355,9 @@ export default function AdminPanel({ onSync, onSimulate, onReset, onCsvUpload, o
               onSync={onSync}
               onSimulate={onSimulate}
               onReset={onReset}
+              onQuickScrape={handleQuickScrape}
+              onQuickProcess={handleQuickProcess}
+              onQuickReprocess={handleQuickReprocess}
               onCsvUpload={handleFileChange}
               onExport={onExport}
               onExportEliminated={onExportEliminated}
@@ -375,7 +433,7 @@ function OverviewTab({ stats, onRefresh }) {
 }
 
 // Contests Tab Component
-function ContestsTab({ contests, onScrape, onProcess, onStartContest, onBackup, loading }) {
+function ContestsTab({ contests, onScrape, onProcess, onReprocess, onStartContest, onBackup, loading }) {
   return (
     <div className="space-y-4">
       {contests.length === 0 ? (
@@ -435,13 +493,22 @@ function ContestsTab({ contests, onScrape, onProcess, onStartContest, onBackup, 
                   </button>
                 )}
                 {contest.is_processed && (
-                  <button
-                    onClick={() => onBackup(contest.day_number)}
-                    disabled={loading}
-                    className="px-3 py-1.5 bg-squid-yellow/10 text-squid-yellow border border-squid-yellow/20 rounded-lg text-xs font-mono hover:bg-squid-yellow/20 transition-all disabled:opacity-50"
-                  >
-                    Backup
-                  </button>
+                  <>
+                    <button
+                      onClick={() => onReprocess(contest.day_number)}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-squid-pink/10 text-squid-pink border border-squid-pink/20 rounded-lg text-xs font-mono hover:bg-squid-pink/20 transition-all disabled:opacity-50"
+                    >
+                      Reprocess
+                    </button>
+                    <button
+                      onClick={() => onBackup(contest.day_number)}
+                      disabled={loading}
+                      className="px-3 py-1.5 bg-squid-yellow/10 text-squid-yellow border border-squid-yellow/20 rounded-lg text-xs font-mono hover:bg-squid-yellow/20 transition-all disabled:opacity-50"
+                    >
+                      Backup
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -539,7 +606,7 @@ function AuditTab({ logs, onExport }) {
 }
 
 // Actions Tab Component
-function ActionsTab({ onSync, onSimulate, onReset, onCsvUpload, onExport, onExportEliminated, onStartCompetition, syncing, uploading, exporting, exportingEliminated, showCreateContest, setShowCreateContest, contestForm, setContestForm, onCreateContest, loading }) {
+function ActionsTab({ onSync, onSimulate, onReset, onQuickScrape, onQuickProcess, onQuickReprocess, onCsvUpload, onExport, onExportEliminated, onStartCompetition, syncing, uploading, exporting, exportingEliminated, showCreateContest, setShowCreateContest, contestForm, setContestForm, onCreateContest, loading }) {
   return (
     <div className="space-y-6">
       {/* Create Contest Form */}
@@ -692,6 +759,24 @@ function ActionsTab({ onSync, onSimulate, onReset, onCsvUpload, onExport, onExpo
               disabled={syncing}
               loading={syncing}
               color="mint"
+            />
+            <ActionButton
+              icon={Download}
+              label="SCRAPE DAY (MANUAL)"
+              onClick={onQuickScrape}
+              color="blue"
+            />
+            <ActionButton
+              icon={Play}
+              label="PROCESS DAY (STRIKES)"
+              onClick={onQuickProcess}
+              color="mint"
+            />
+            <ActionButton
+              icon={RefreshCw}
+              label="REPROCESS DAY"
+              onClick={onQuickReprocess}
+              color="pink"
             />
             <ActionButton
               icon={Play}

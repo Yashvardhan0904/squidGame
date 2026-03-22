@@ -16,9 +16,31 @@ export default function RegisterPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [googleReady, setGoogleReady] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '');
   const router = useRouter();
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const googleBtnRef = useRef(null);
+
+  useEffect(() => {
+    if (googleClientId) return;
+
+    let isMounted = true;
+    const loadGoogleConfig = async () => {
+      try {
+        const res = await fetch('/api/auth/google/config', { cache: 'no-store' });
+        const data = await res.json();
+        if (isMounted && data?.clientId) {
+          setGoogleClientId(data.clientId);
+        }
+      } catch {
+        // Keep email registration working even if config fetch fails.
+      }
+    };
+
+    loadGoogleConfig();
+    return () => {
+      isMounted = false;
+    };
+  }, [googleClientId]);
 
   const handleGoogleResponse = useCallback(async (response) => {
     setGoogleLoading(true);
