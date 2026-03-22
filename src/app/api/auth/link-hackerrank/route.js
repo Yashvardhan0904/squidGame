@@ -48,20 +48,24 @@ export async function POST(request) {
             },
         });
 
-        // Best-effort participant sync: do not block profile save if user is not in contest table.
-        const competitionUser = await prisma.user.findUnique({
-            where: { hackerrank_id: normalizedHackerrankId },
-            select: { id: true },
-        });
-
-        if (competitionUser) {
-            await prisma.user.update({
-                where: { id: competitionUser.id },
-                data: {
-                    enroll_no: normalizedEnrollment,
-                    email: account.email,
-                },
+        // Best-effort participant sync: never block profile save if contest data is missing or conflicts.
+        try {
+            const competitionUser = await prisma.user.findUnique({
+                where: { hackerrank_id: normalizedHackerrankId },
+                select: { id: true },
             });
+
+            if (competitionUser) {
+                await prisma.user.update({
+                    where: { id: competitionUser.id },
+                    data: {
+                        enroll_no: normalizedEnrollment,
+                        email: account.email,
+                    },
+                });
+            }
+        } catch (syncError) {
+            console.warn('Profile sync warning (non-blocking):', syncError?.message || syncError);
         }
 
         // Re-issue JWT with updated profile details.

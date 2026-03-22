@@ -31,13 +31,13 @@ export async function GET() {
       return NextResponse.json({ authenticated: false }, { status: 401 });
     }
 
-    let enrollNo = null;
+    let enrollNo = typeof decoded?.enroll_no === 'string' ? decoded.enroll_no : null;
     if (account.hackerrank_id) {
       const competitionUser = await prisma.user.findUnique({
         where: { hackerrank_id: account.hackerrank_id },
         select: { enroll_no: true },
       });
-      enrollNo = competitionUser?.enroll_no || null;
+      enrollNo = competitionUser?.enroll_no || enrollNo;
     }
 
     return NextResponse.json({
