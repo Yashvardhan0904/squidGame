@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AlertCircle, Link2, Loader2, CheckCircle2, X, Bell } from 'lucide-react';
 
 export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
+    const [enrollmentNumber, setEnrollmentNumber] = useState('');
     const [hackerrankId, setHackerrankId] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -12,6 +13,10 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        if (!enrollmentNumber.trim()) {
+            setError('Please enter your enrollment number');
+            return;
+        }
         if (!hackerrankId.trim()) {
             setError('Please enter your HackerRank ID');
             return;
@@ -24,12 +29,15 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
             const res = await fetch('/api/auth/link-hackerrank', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hackerrank_id: hackerrankId.trim() }),
+                body: JSON.stringify({
+                    enroll_no: enrollmentNumber.trim(),
+                    hackerrank_id: hackerrankId.trim(),
+                }),
             });
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || 'Failed to link HackerRank ID');
+                setError(data.error || 'Failed to save profile details');
                 return;
             }
 
@@ -72,7 +80,7 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
                         </div>
                         <h1 className="text-xl font-display font-bold text-white mb-1">Enable Notifications</h1>
                         <p className="text-gray-500 text-sm">
-                            Link your HackerRank ID to get strike & elimination alerts at <span className="text-white font-medium">{user?.email}</span>
+                            Complete your profile by adding enrollment number and HackerRank ID for <span className="text-white font-medium">{user?.email}</span>
                         </p>
                     </div>
 
@@ -96,7 +104,7 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
                             className="flex items-center gap-2 px-3 py-2.5 bg-squid-mint/10 border border-squid-mint/20 rounded-xl mb-4"
                         >
                             <CheckCircle2 size={13} className="text-squid-mint flex-shrink-0" />
-                            <span className="text-squid-mint font-mono text-xs">Linked! You will now receive notifications.</span>
+                            <span className="text-squid-mint font-mono text-xs">Profile saved successfully.</span>
                         </motion.div>
                     )}
 
@@ -104,7 +112,30 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div>
                             <label className="block text-[10px] font-mono text-gray-500 tracking-[0.15em] uppercase mb-1.5">
-                                HackerRank Username
+                                Enrollment Number
+                            </label>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    value={enrollmentNumber}
+                                    onChange={(e) => setEnrollmentNumber(e.target.value)}
+                                    placeholder="e.g., 23BCE1234"
+                                    required
+                                    disabled={success}
+                                    className="w-full bg-squid-gray border border-squid-border/50 text-white pl-10 pr-4 py-3 rounded-xl
+                    font-mono text-sm focus:border-squid-pink/40 focus:outline-none transition-all placeholder:text-gray-700
+                    disabled:opacity-50"
+                                />
+                                <Link2 size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600" />
+                            </div>
+                            <p className="text-gray-700 font-mono text-[10px] mt-1.5">
+                                Use the same enrollment number that was registered in the ACM participant sheet.
+                            </p>
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] font-mono text-gray-500 tracking-[0.15em] uppercase mb-1.5">
+                                HackerRank ID
                             </label>
                             <div className="relative">
                                 <input
@@ -121,7 +152,7 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
                                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-600 font-mono text-sm">@</span>
                             </div>
                             <p className="text-gray-700 font-mono text-[10px] mt-1.5">
-                                Find it on your <a href="https://www.hackerrank.com/settings" target="_blank" rel="noopener noreferrer" className="text-squid-pink/60 hover:text-squid-pink underline">HackerRank profile</a>
+                                Enter the exact HackerRank username you use in contests.
                             </p>
                         </div>
 
@@ -133,14 +164,14 @@ export default function HackerRankLinkModal({ user, onLinked, onDismiss }) {
                         >
                             {loading ? (
                                 <span className="flex items-center justify-center gap-2">
-                                    <Loader2 size={16} className="animate-spin" /> VERIFYING...
+                                    <Loader2 size={16} className="animate-spin" /> SAVING PROFILE...
                                 </span>
                             ) : success ? (
                                 <span className="flex items-center justify-center gap-2">
                                     <CheckCircle2 size={16} /> LINKED!
                                 </span>
                             ) : (
-                                'LINK & ENABLE NOTIFICATIONS'
+                                'SAVE PROFILE DETAILS'
                             )}
                         </button>
                     </form>

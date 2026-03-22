@@ -65,7 +65,15 @@ export async function POST(request) {
     });
 
     const token = jwt.sign(
-      { accountId: account.id, email: account.email, name: account.name, role: account.role, avatar_url: null, hackerrank_id: null },
+      {
+        accountId: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        avatar_url: null,
+        hackerrank_id: null,
+        enroll_no: null,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );

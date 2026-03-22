@@ -43,8 +43,8 @@ export default function SquidGameArena() {
           const data = await res.json();
           if (data.authenticated) {
             setUser(data.user);
-            // Show link prompt if not linked and not admin
-            if (!data.user.hackerrank_id && data.user.role !== 'ADMIN') {
+            // Require profile completion (enrollment + HackerRank) for non-admin users.
+            if ((!data.user.enroll_no || !data.user.hackerrank_id) && data.user.role !== 'ADMIN') {
               setShowLinkPrompt(true);
             }
           }

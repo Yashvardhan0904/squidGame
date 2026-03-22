@@ -187,10 +187,16 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                             <p className="text-gray-500 font-mono text-[10px] truncate">{user.email}</p>
                           </div>
                         </div>
+                        {user.enroll_no && (
+                          <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-squid-mint/5 border border-squid-mint/15 rounded-lg">
+                            <Link2 size={10} className="text-squid-mint" />
+                            <span className="font-mono text-[10px] text-squid-mint">ENROLL: {user.enroll_no}</span>
+                          </div>
+                        )}
                         {user.hackerrank_id && (
                           <div className="mt-2 flex items-center gap-1.5 px-2 py-1 bg-squid-mint/5 border border-squid-mint/15 rounded-lg">
                             <Link2 size={10} className="text-squid-mint" />
-                            <span className="font-mono text-[10px] text-squid-mint">@{user.hackerrank_id}</span>
+                            <span className="font-mono text-[10px] text-squid-mint">HR: @{user.hackerrank_id}</span>
                           </div>
                         )}
                       </div>
@@ -202,23 +208,23 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                           <button
                             onClick={() => {
                               setProfileOpen(false);
-                              if (!user.hackerrank_id && onEnableNotifications) {
+                              if ((!user.enroll_no || !user.hackerrank_id) && onEnableNotifications) {
                                 onEnableNotifications();
                               }
                             }}
                             className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-squid-gray/50 transition-colors group"
                           >
-                            {user.hackerrank_id ? (
+                            {user.enroll_no && user.hackerrank_id ? (
                               <>
                                 <Bell size={14} className="text-squid-mint" />
-                                <span className="font-mono text-[11px] text-squid-mint">Notifications Enabled</span>
+                                <span className="font-mono text-[11px] text-squid-mint">Profile Complete</span>
                               </>
                             ) : (
                               <>
                                 <BellOff size={14} className="text-gray-500 group-hover:text-squid-pink" />
                                 <div className="text-left">
-                                  <span className="font-mono text-[11px] text-gray-400 group-hover:text-white block">Enable Notifications</span>
-                                  <span className="font-mono text-[9px] text-gray-700">Link HackerRank ID</span>
+                                  <span className="font-mono text-[11px] text-gray-400 group-hover:text-white block">Complete Profile</span>
+                                  <span className="font-mono text-[9px] text-gray-700">Add Enrollment + HackerRank ID</span>
                                 </div>
                               </>
                             )}
@@ -327,19 +333,25 @@ export default function Navbar({ user, onLogout, onEnableNotifications }) {
                         </span>
                       )}
                     </div>
+                    {user.enroll_no && (
+                      <div className="mx-4 flex items-center gap-2 px-3 py-2 bg-squid-mint/5 border border-squid-mint/15 rounded-lg">
+                        <Link2 size={12} className="text-squid-mint" />
+                        <span className="font-mono text-xs text-squid-mint">ENROLL: {user.enroll_no}</span>
+                      </div>
+                    )}
                     {user.hackerrank_id && (
                       <div className="mx-4 flex items-center gap-2 px-3 py-2 bg-squid-mint/5 border border-squid-mint/15 rounded-lg">
                         <Link2 size={12} className="text-squid-mint" />
-                        <span className="font-mono text-xs text-squid-mint">@{user.hackerrank_id}</span>
+                        <span className="font-mono text-xs text-squid-mint">HR: @{user.hackerrank_id}</span>
                       </div>
                     )}
-                    {user.role !== 'ADMIN' && !user.hackerrank_id && (
+                    {user.role !== 'ADMIN' && (!user.enroll_no || !user.hackerrank_id) && (
                       <button
                         onClick={() => { setMobileOpen(false); onEnableNotifications?.(); }}
                         className="w-full text-left px-4 py-3 font-mono text-sm text-gray-400 hover:text-squid-pink transition-colors flex items-center gap-2"
                       >
                         <BellOff size={14} />
-                        ENABLE NOTIFICATIONS
+                        COMPLETE PROFILE
                       </button>
                     )}
                     <button onClick={() => { onLogout?.(); setMobileOpen(false); }}

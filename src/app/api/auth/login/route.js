@@ -59,14 +59,30 @@ export async function POST(request) {
     }
 
     const token = jwt.sign(
-      { accountId: account.id, email: account.email, name: account.name, role: account.role, avatar_url: account.avatar_url, hackerrank_id: account.hackerrank_id },
+      {
+        accountId: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        avatar_url: account.avatar_url,
+        hackerrank_id: account.hackerrank_id,
+        enroll_no: account.enroll_no,
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     const response = NextResponse.json({
       message: 'Login successful',
-      user: { id: account.id, email: account.email, name: account.name, role: account.role, avatar_url: account.avatar_url },
+      user: {
+        id: account.id,
+        email: account.email,
+        name: account.name,
+        role: account.role,
+        avatar_url: account.avatar_url,
+        hackerrank_id: account.hackerrank_id,
+        enroll_no: account.enroll_no,
+      },
     });
 
     response.cookies.set('auth_token', token, {

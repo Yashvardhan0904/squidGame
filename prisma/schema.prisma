@@ -286,6 +286,7 @@ model Account {
   provider      String   @default("EMAIL")
   google_id     String?  @unique
   avatar_url    String?
+  enroll_no     String?  @unique
   hackerrank_id String?  @unique
   created_at    DateTime @default(now())
 

@@ -13,51 +13,57 @@ export async function POST(request) {
         }
 
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const { hackerrank_id } = await request.json();
+        const { enroll_no, hackerrank_id } = await request.json();
 
-        if (!hackerrank_id || !hackerrank_id.trim()) {
+        if (!enroll_no || !String(enroll_no).trim()) {
+            return NextResponse.json({ error: 'Enrollment number is required' }, { status: 400 });
+        }
+
+        if (!hackerrank_id || !String(hackerrank_id).trim()) {
             return NextResponse.json({ error: 'HackerRank ID is required' }, { status: 400 });
         }
 
-        const hrId = hackerrank_id.trim().toLowerCase();
+        const normalizedEnrollment = String(enroll_no).trim().toUpperCase();
+        const normalizedHackerrankId = String(hackerrank_id).trim().toLowerCase();
 
-        // Check if this HackerRank ID exists in the competition users table
-        const competitionUser = await prisma.user.findUnique({
-            where: { hackerrank_id: hrId },
+        const existingHrClaim = await prisma.account.findFirst({
+            where: {
+                hackerrank_id: normalizedHackerrankId,
+                NOT: { id: decoded.accountId },
+            },
         });
 
-        if (!competitionUser) {
-            return NextResponse.json(
-                { error: 'This HackerRank ID is not registered in the competition. Please check your ID.' },
-                { status: 404 }
-            );
-        }
-
-        // Check if another account already claimed this HackerRank ID
-        const existingClaim = await prisma.account.findUnique({
-            where: { hackerrank_id: hrId },
-        });
-
-        if (existingClaim && existingClaim.id !== decoded.accountId) {
+        if (existingHrClaim) {
             return NextResponse.json(
                 { error: 'This HackerRank ID is already linked to another account.' },
                 { status: 409 }
             );
         }
 
-        // Link the HackerRank ID to the account
+        const existingEnrollmentClaim = await prisma.account.findFirst({
+            where: {
+                enroll_no: normalizedEnrollment,
+                NOT: { id: decoded.accountId },
+            },
+        });
+
+        if (existingEnrollmentClaim) {
+            return NextResponse.json(
+                { error: 'This enrollment number is already linked to another account.' },
+                { status: 409 }
+            );
+        }
+
+        // Save profile details directly on account.
         const account = await prisma.account.update({
             where: { id: decoded.accountId },
-            data: { hackerrank_id: hrId },
+            data: {
+                enroll_no: normalizedEnrollment,
+                hackerrank_id: normalizedHackerrankId,
+            },
         });
 
-        // Sync the verified email to the competition user
-        await prisma.user.update({
-            where: { hackerrank_id: hrId },
-            data: { email: account.email },
-        });
-
-        // Re-issue JWT with hackerrank_id
+        // Re-issue JWT with updated profile details.
         const newToken = jwt.sign(
             {
                 accountId: account.id,
@@ -65,21 +71,23 @@ export async function POST(request) {
                 name: account.name,
                 role: account.role,
                 avatar_url: account.avatar_url,
-                hackerrank_id: hrId,
+                hackerrank_id: normalizedHackerrankId,
+                enroll_no: normalizedEnrollment,
             },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
 
         const response = NextResponse.json({
-            message: 'HackerRank ID linked successfully',
+            message: 'Enrollment number linked successfully',
             user: {
                 id: account.id,
                 email: account.email,
                 name: account.name,
                 role: account.role,
                 avatar_url: account.avatar_url,
-                hackerrank_id: hrId,
+                hackerrank_id: normalizedHackerrankId,
+                enroll_no: normalizedEnrollment,
             },
         });
 
